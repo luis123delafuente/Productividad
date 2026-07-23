@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { tasksApi, type TaskCreateInput } from "../api/tasks";
-import type { TaskPriority } from "../api/types";
+import type { TaskPriority, TaskStatus } from "../api/types";
 
 function useInvalidateTaskViews() {
   const qc = useQueryClient();
@@ -23,8 +23,25 @@ export function useCreateTask() {
 export function useUpdateTask() {
   const invalidate = useInvalidateTaskViews();
   return useMutation({
-    mutationFn: ({ id, name, priority }: { id: number; name?: string; priority?: TaskPriority }) =>
-      tasksApi.update(id, { name, priority }),
+    mutationFn: ({
+      id,
+      name,
+      description,
+      priority,
+    }: {
+      id: number;
+      name?: string;
+      description?: string | null;
+      priority?: TaskPriority;
+    }) => tasksApi.update(id, { name, description, priority }),
+    onSuccess: invalidate,
+  });
+}
+
+export function useSetTaskStatus() {
+  const invalidate = useInvalidateTaskViews();
+  return useMutation({
+    mutationFn: ({ id, status }: { id: number; status: TaskStatus }) => tasksApi.updateStatus(id, status),
     onSuccess: invalidate,
   });
 }

@@ -10,7 +10,7 @@ router = APIRouter(prefix="/api/today", tags=["today"])
 
 
 def _to_read(task: Task) -> TaskRead:
-    return TaskRead(**task.model_dump(), subtasks=list(task.subtasks))
+    return TaskRead(**task.model_dump(), project_name=task.project.name, subtasks=list(task.subtasks))
 
 
 @router.get("", response_model=TodayResponse)

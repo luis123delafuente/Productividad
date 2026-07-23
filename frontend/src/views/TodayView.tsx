@@ -31,7 +31,7 @@ export function TodayView() {
       {data && data.selected.length > 0 && (
         <div>
           {data.selected.map((task) => (
-            <TaskCard key={task.id} task={task} />
+            <TaskCard key={task.id} task={task} showChecklist showProjectTag />
           ))}
         </div>
       )}

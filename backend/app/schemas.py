@@ -62,6 +62,7 @@ class SubtaskRead(SQLModel):
 class TaskCreate(SQLModel):
     project_id: int
     name: str
+    description: Optional[str] = None
     priority: TaskPriority = TaskPriority.media
     status: TaskStatus = TaskStatus.pendiente
     due_date: Optional[date] = None
@@ -69,6 +70,7 @@ class TaskCreate(SQLModel):
 
 class TaskUpdate(SQLModel):
     name: Optional[str] = None
+    description: Optional[str] = None
     priority: Optional[TaskPriority] = None
     project_id: Optional[int] = None
 
@@ -88,7 +90,9 @@ class TaskInTodayUpdate(SQLModel):
 class TaskRead(SQLModel):
     id: int
     project_id: int
+    project_name: str
     name: str
+    description: Optional[str] = None
     status: TaskStatus
     priority: TaskPriority
     due_date: Optional[date] = None

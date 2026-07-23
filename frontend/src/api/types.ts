@@ -32,7 +32,9 @@ export interface Subtask {
 export interface Task {
   id: number;
   project_id: number;
+  project_name: string;
   name: string;
+  description: string | null;
   status: TaskStatus;
   priority: TaskPriority;
   due_date: string | null;

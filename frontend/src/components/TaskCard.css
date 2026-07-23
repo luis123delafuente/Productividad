@@ -27,6 +27,28 @@
   cursor: grabbing;
 }
 
+.task-card__checkbox {
+  margin-top: 2px;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  accent-color: var(--color-petrol);
+  cursor: pointer;
+}
+
+.task-card--checklist {
+  align-items: flex-start;
+}
+
+.task-card__project-tag {
+  font-family: var(--font-display);
+  font-size: 10.5px;
+  color: var(--color-ink-soft);
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-pill);
+  padding: 1px 8px;
+}
+
 .task-card__body {
   flex: 1;
   min-width: 0;
@@ -55,6 +77,11 @@
   font-weight: 500;
   color: var(--color-ink);
   margin-bottom: var(--space-2);
+}
+
+.task-card__name.is-done {
+  text-decoration: line-through;
+  color: var(--color-ink-faint);
 }
 
 .task-card__meta {

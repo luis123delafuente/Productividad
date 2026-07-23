@@ -4,6 +4,7 @@ import type { Task, TaskPriority, TaskStatus } from "./types";
 export interface TaskCreateInput {
   project_id: number;
   name: string;
+  description?: string | null;
   priority?: TaskPriority;
   status?: TaskStatus;
   due_date?: string | null;
@@ -12,7 +13,7 @@ export interface TaskCreateInput {
 export const tasksApi = {
   get: (id: number) => api.get<Task>(`/tasks/${id}`),
   create: (input: TaskCreateInput) => api.post<Task>("/tasks", input),
-  update: (id: number, input: { name?: string; priority?: TaskPriority }) =>
+  update: (id: number, input: { name?: string; description?: string | null; priority?: TaskPriority }) =>
     api.patch<Task>(`/tasks/${id}`, input),
   updateStatus: (id: number, status: TaskStatus) => api.patch<Task>(`/tasks/${id}/status`, { status }),
   updateDueDate: (id: number, due_date: string | null) =>

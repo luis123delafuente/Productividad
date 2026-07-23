@@ -4,6 +4,7 @@ import { useArchiveProject, useProject, useReopenProject } from "../hooks/usePro
 import { useProjectArchivedTasks } from "../hooks/useArchive";
 import { useRestoreTask } from "../hooks/useTasks";
 import { KanbanBoard } from "../components/KanbanBoard";
+import { ProjectEditForm } from "../components/ProjectEditForm";
 import { SortToggle } from "../components/SortToggle";
 import { TaskForm } from "../components/TaskForm";
 import type { SortMode } from "../api/types";
@@ -16,6 +17,7 @@ export function ProjectView() {
   const { data: project } = useProject(projectId);
   const [sort, setSort] = useState<SortMode>("none");
   const [showArchived, setShowArchived] = useState(false);
+  const [editing, setEditing] = useState(false);
   const archiveProject = useArchiveProject();
   const reopenProject = useReopenProject();
   const { openWithMessage } = useAssistant();
@@ -24,36 +26,43 @@ export function ProjectView() {
 
   return (
     <div>
-      <div className="main__header">
-        <div>
-          <h1 className="main__title">{project.name}</h1>
-          <p className="main__subtitle">
-            {project.client ? `Cliente: ${project.client}` : "Sin cliente asociado"}
-            {project.description ? ` · ${project.description}` : ""}
-          </p>
+      {editing ? (
+        <ProjectEditForm project={project} onClose={() => setEditing(false)} />
+      ) : (
+        <div className="main__header">
+          <div>
+            <h1 className="main__title">{project.name}</h1>
+            <p className="main__subtitle">
+              {project.client ? `Cliente: ${project.client}` : "Sin cliente asociado"}
+              {project.description ? ` · ${project.description}` : ""}
+            </p>
+          </div>
+          <div className="project-view__actions">
+            <button className="btn" onClick={() => setEditing(true)}>
+              Editar proyecto
+            </button>
+            {!project.is_archived && (
+              <button
+                className="btn"
+                onClick={() =>
+                  openWithMessage("Ayúdame a priorizar este proyecto", { project_id: project.id })
+                }
+              >
+                Ayúdame a priorizar
+              </button>
+            )}
+            {project.is_archived ? (
+              <button className="btn btn--primary" onClick={() => reopenProject.mutate(project.id)}>
+                Reabrir proyecto
+              </button>
+            ) : (
+              <button className="btn" onClick={() => archiveProject.mutate(project.id)}>
+                Archivar proyecto
+              </button>
+            )}
+          </div>
         </div>
-        <div className="project-view__actions">
-          {!project.is_archived && (
-            <button
-              className="btn"
-              onClick={() =>
-                openWithMessage("Ayúdame a priorizar este proyecto", { project_id: project.id })
-              }
-            >
-              Ayúdame a priorizar
-            </button>
-          )}
-          {project.is_archived ? (
-            <button className="btn btn--primary" onClick={() => reopenProject.mutate(project.id)}>
-              Reabrir proyecto
-            </button>
-          ) : (
-            <button className="btn" onClick={() => archiveProject.mutate(project.id)}>
-              Archivar proyecto
-            </button>
-          )}
-        </div>
-      </div>
+      )}
 
       {project.is_archived && (
         <div className="empty-state" style={{ marginBottom: "var(--space-5)" }}>

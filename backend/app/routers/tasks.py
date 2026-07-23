@@ -17,7 +17,12 @@ router = APIRouter(prefix="/api/tasks", tags=["tasks"])
 
 
 def _to_read(task: Task, warning: str | None = None) -> TaskRead:
-    return TaskRead(**task.model_dump(), calendar_sync_warning=warning, subtasks=list(task.subtasks))
+    return TaskRead(
+        **task.model_dump(),
+        project_name=task.project.name,
+        calendar_sync_warning=warning,
+        subtasks=list(task.subtasks),
+    )
 
 
 @router.post("", response_model=TaskRead, status_code=201)

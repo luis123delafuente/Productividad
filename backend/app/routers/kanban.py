@@ -23,7 +23,7 @@ def _sort_tasks(tasks: list[Task], sort: SortMode) -> list[Task]:
 
 
 def _to_read(task: Task) -> TaskRead:
-    return TaskRead(**task.model_dump(), subtasks=list(task.subtasks))
+    return TaskRead(**task.model_dump(), project_name=task.project.name, subtasks=list(task.subtasks))
 
 
 @router.get("/{project_id}/kanban")

@@ -39,9 +39,13 @@ export function useCreateProject() {
 
 export function useUpdateProject(projectId: number) {
   const qc = useQueryClient();
+  const invalidateLists = useInvalidateProjects();
   return useMutation({
     mutationFn: (input: ProjectUpdateInput) => projectsApi.update(projectId, input),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["project", projectId] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["project", projectId] });
+      invalidateLists();
+    },
   });
 }
 

@@ -9,6 +9,7 @@ export function SuggestionCard({ task }: { task: Task }) {
   return (
     <div className="suggestion-card">
       <PriorityBadge priority={task.priority} />
+      <span className="suggestion-card__project-tag">{task.project_name}</span>
       <span className="suggestion-card__name">{task.name}</span>
       {task.due_date && <span className="suggestion-card__due">vence {task.due_date}</span>}
       <button className="btn btn--ghost suggestion-card__add" onClick={() => addSuggestion.mutate(task.id)}>

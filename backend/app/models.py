@@ -46,6 +46,7 @@ class Task(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     project_id: int = Field(foreign_key="project.id", index=True)
     name: str
+    description: Optional[str] = None
     status: TaskStatus = Field(default=TaskStatus.pendiente)
     priority: TaskPriority = Field(default=TaskPriority.media)
     due_date: Optional[date] = None

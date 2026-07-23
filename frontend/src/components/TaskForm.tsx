@@ -6,6 +6,7 @@ import "./TaskForm.css";
 export function TaskForm({ projectId }: { projectId: number }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
   const [priority, setPriority] = useState<TaskPriority>("Media");
   const [dueDate, setDueDate] = useState("");
   const createTask = useCreateTask();
@@ -14,10 +15,17 @@ export function TaskForm({ projectId }: { projectId: number }) {
     e.preventDefault();
     if (!name.trim()) return;
     createTask.mutate(
-      { project_id: projectId, name: name.trim(), priority, due_date: dueDate || null },
+      {
+        project_id: projectId,
+        name: name.trim(),
+        description: description.trim() || null,
+        priority,
+        due_date: dueDate || null,
+      },
       {
         onSuccess: () => {
           setName("");
+          setDescription("");
           setPriority("Media");
           setDueDate("");
           setOpen(false);
@@ -41,6 +49,11 @@ export function TaskForm({ projectId }: { projectId: number }) {
         placeholder="Nombre de la tarea"
         value={name}
         onChange={(e) => setName(e.target.value)}
+      />
+      <input
+        placeholder="Descripción (opcional)"
+        value={description}
+        onChange={(e) => setDescription(e.target.value)}
       />
       <select value={priority} onChange={(e) => setPriority(e.target.value as TaskPriority)}>
         <option value="Alta">Alta</option>
