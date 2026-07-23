@@ -1,0 +1,111 @@
+.task-card {
+  display: flex;
+  gap: var(--space-2);
+  background: var(--color-paper-raised);
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  padding: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.task-card.is-dragging {
+  box-shadow: var(--shadow-card-lift);
+  opacity: 0.9;
+  z-index: 10;
+}
+
+.task-card__drag-handle {
+  color: var(--color-ink-faint);
+  cursor: grab;
+  touch-action: none;
+  padding-top: 2px;
+  user-select: none;
+}
+
+.task-card__drag-handle:active {
+  cursor: grabbing;
+}
+
+.task-card__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.task-card__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-2);
+}
+
+.task-card__warning {
+  color: var(--color-brass);
+  font-size: 13px;
+}
+
+.task-card__name {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-ink);
+  margin-bottom: var(--space-2);
+}
+
+.task-card__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.task-card__due {
+  font-family: var(--font-display);
+  font-size: 11px;
+  color: var(--color-ink-soft);
+}
+
+.task-card__progress {
+  font-family: var(--font-display);
+  font-size: 11px;
+  color: var(--color-ink-faint);
+}
+
+.task-card__today-toggle {
+  margin-left: auto;
+  background: transparent;
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-pill);
+  font-size: 10.5px;
+  padding: 2px 8px;
+  color: var(--color-ink-soft);
+}
+
+.task-card__today-toggle.is-active {
+  background: var(--color-petrol-soft);
+  border-color: var(--color-petrol);
+  color: var(--color-petrol);
+}
+
+.task-card__expanded {
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px dashed var(--color-rule);
+}
+
+.task-card__expanded-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: var(--space-2);
+}
+
+.task-card__expanded-actions .btn {
+  padding: 0;
+  font-size: 12px;
+}

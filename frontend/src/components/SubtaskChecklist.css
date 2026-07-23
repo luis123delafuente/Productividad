@@ -1,0 +1,58 @@
+.subtask-checklist__list {
+  list-style: none;
+  margin: 0 0 var(--space-2) 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.subtask-checklist__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  font-size: 13px;
+  padding: 2px 0;
+}
+
+.subtask-checklist__item label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: 1;
+  min-width: 0;
+}
+
+.subtask-checklist__item span.is-checked {
+  text-decoration: line-through;
+  color: var(--color-ink-faint);
+}
+
+.subtask-checklist__remove {
+  background: none;
+  border: none;
+  color: var(--color-ink-faint);
+  font-size: 15px;
+  line-height: 1;
+  padding: 2px 4px;
+  opacity: 0;
+}
+
+.subtask-checklist__item:hover .subtask-checklist__remove {
+  opacity: 1;
+}
+
+.subtask-checklist__add input {
+  width: 100%;
+  border: none;
+  border-bottom: 1px dashed var(--color-rule);
+  background: transparent;
+  padding: var(--space-1) 0;
+  font-size: 13px;
+}
+
+.subtask-checklist__add input:focus {
+  outline: none;
+  border-bottom-color: var(--color-petrol);
+}

@@ -1,0 +1,10 @@
+.kanban-board {
+  display: flex;
+  gap: var(--space-4);
+  align-items: flex-start;
+}
+
+.kanban-board__loading {
+  color: var(--color-ink-soft);
+  font-size: 13px;
+}

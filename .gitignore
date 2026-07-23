@@ -1,0 +1,11 @@
+.DS_Store
+backend/.env
+backend/data/*.db
+backend/data/*.db-journal
+backend/data/backups/
+backend/.venv/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/.pytest_cache/
+frontend/node_modules/
+frontend/dist/
