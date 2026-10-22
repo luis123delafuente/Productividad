@@ -26,8 +26,13 @@ _PRIORITY_RANK = {TaskPriority.alta: 0, TaskPriority.media: 1, TaskPriority.baja
 
 
 def _to_read(task: Task) -> TaskRead:
-    project_name = task.project.name if task.project else None
-    return TaskRead(**task.model_dump(), project_name=project_name, subtasks=list(task.subtasks))
+    project = task.project
+    return TaskRead(
+        **task.model_dump(),
+        project_name=project.name if project else None,
+        category_id=project.category_id if project else None,
+        subtasks=list(task.subtasks),
+    )
 
 
 def _visible_tasks():

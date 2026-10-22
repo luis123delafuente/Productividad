@@ -4,6 +4,7 @@ import type { Task } from "../../api/types";
 import { useUnplanned } from "../../hooks/useAgenda";
 import { formatDayMonth, parseISODate } from "../../lib/dates";
 import { PriorityBadge } from "../PriorityBadge";
+import { colorStyle, useCalendarColors } from "./colors";
 
 const ALL = "all";
 const LOOSE = "loose";
@@ -33,10 +34,12 @@ function TrayCard({ task }: { task: Task }) {
     id: `tray:${task.id}`,
     data: { task },
   });
+  const color = useCalendarColors().taskColor(task);
   return (
     <li
       ref={setNodeRef}
-      className={`cal-tray-card ${isDragging ? "is-dragging" : ""}`}
+      className={`cal-tray-card ${color ? "has-color" : ""} ${isDragging ? "is-dragging" : ""}`}
+      style={colorStyle(color)}
       {...listeners}
       {...attributes}
     >

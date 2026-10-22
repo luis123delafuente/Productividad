@@ -48,6 +48,8 @@ def _add_missing_columns() -> None:
             connection.execute(text("ALTER TABLE category ADD COLUMN is_archived BOOLEAN NOT NULL DEFAULT 0"))
         if existing_category and "archived_at" not in existing_category:
             connection.execute(text("ALTER TABLE category ADD COLUMN archived_at DATETIME"))
+        if existing_category and "color" not in existing_category:
+            connection.execute(text("ALTER TABLE category ADD COLUMN color VARCHAR"))
 
 
 def _make_task_project_id_nullable() -> None:

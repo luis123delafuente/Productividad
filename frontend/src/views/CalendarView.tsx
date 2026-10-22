@@ -23,6 +23,8 @@ import {
   toISODate,
   toLocalDateTime,
 } from "../lib/dates";
+import { CalendarColorsProvider } from "../components/calendar/CalendarColorsProvider";
+import { colorStyle, useCalendarColors } from "../components/calendar/colors";
 import { TimeGrid } from "../components/calendar/TimeGrid";
 import { TrayCardContent, UnplannedTray } from "../components/calendar/UnplannedTray";
 import type { DropPreview } from "../components/calendar/DayColumn";
@@ -52,7 +54,7 @@ function minutesLabel(minutes: number): string {
   return `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
 }
 
-export function CalendarView() {
+function CalendarScreen() {
   const [params, setParams] = useSearchParams();
   const mode: ViewMode = params.get("vista") === "dia" ? "dia" : "semana";
   const anchor = params.get("fecha") ? parseISODate(params.get("fecha")!) : new Date();
@@ -126,6 +128,7 @@ export function CalendarView() {
   }
 
   const google = agenda?.google;
+  const { taskColor } = useCalendarColors();
 
   return (
     <div className="calendar-view">
@@ -206,7 +209,10 @@ export function CalendarView() {
 
         <DragOverlay dropAnimation={null}>
           {activeTask && (
-            <div className={activeTask.planned_start ? "cal-block cal-block--overlay" : "cal-tray-card cal-tray-card--overlay"}>
+            <div
+              className={activeTask.planned_start ? "cal-block cal-block--overlay" : "cal-tray-card cal-tray-card--overlay"}
+              style={colorStyle(taskColor(activeTask))}
+            >
               {activeTask.planned_start ? (
                 <div className="cal-block__body">
                   <span className="cal-block__name">{activeTask.name}</span>
@@ -224,5 +230,13 @@ export function CalendarView() {
         </DragOverlay>
       </DndContext>
     </div>
+  );
+}
+
+export function CalendarView() {
+  return (
+    <CalendarColorsProvider>
+      <CalendarScreen />
+    </CalendarColorsProvider>
   );
 }

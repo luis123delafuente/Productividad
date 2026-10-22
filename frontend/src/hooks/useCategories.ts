@@ -36,3 +36,11 @@ export function useDeleteCategory() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["categories"] }),
   });
 }
+
+export function useSetCategoryColor() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, color }: { id: number; color: string | null }) => categoriesApi.setColor(id, color),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["categories"] }),
+  });
+}

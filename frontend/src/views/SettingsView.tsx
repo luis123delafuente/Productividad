@@ -3,6 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { calendarApi } from "../api/calendar";
 import { useCalendarStatus, useDisconnectCalendar } from "../hooks/useCalendarStatus";
 import { useCategories, useReopenCategory } from "../hooks/useCategories";
+import { CalendarColorsSettings } from "../components/CalendarColorsSettings";
 import "./SettingsView.css";
 
 export function SettingsView() {
@@ -67,6 +68,8 @@ export function SettingsView() {
           )}
         </div>
       )}
+
+      <CalendarColorsSettings />
 
       <div className="settings-view__card">
         <p>

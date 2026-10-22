@@ -6,6 +6,8 @@ export interface Category {
   id: number;
   name: string;
   slug: string;
+  /** "#rrggbb" de sus tareas en el calendario; null = color por defecto. */
+  color: string | null;
   is_archived: boolean;
   archived_at: string | null;
   active_project_count: number;
@@ -35,6 +37,8 @@ export interface Task {
   id: number;
   project_id: number | null;
   project_name: string | null;
+  /** Bloque del proyecto. Solo viene relleno en la agenda (calendario). */
+  category_id?: number | null;
   name: string;
   description: string | null;
   status: TaskStatus;
@@ -66,6 +70,14 @@ export interface CalendarStatus {
   connected: boolean;
   needs_reauth: boolean;
   google_account_email: string | null;
+}
+
+/** Regla de color: los eventos de Google cuyo titulo contiene `keyword` se
+ * pintan con `color` ("#rrggbb"). Gana la primera que coincide. */
+export interface ColorRule {
+  id: number;
+  keyword: string;
+  color: string;
 }
 
 /** Evento de Google Calendar, de solo lectura. Con `all_day`, start/end son

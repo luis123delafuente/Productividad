@@ -1,6 +1,8 @@
+import re
 from datetime import date, datetime, time
 from typing import Any, Optional
 
+from pydantic import field_validator
 from sqlmodel import Field, SQLModel
 
 from app.models import TaskPriority, TaskStatus
@@ -11,10 +13,31 @@ class CategoryCreate(SQLModel):
     name: str
 
 
+_HEX_COLOR = re.compile(r"^#[0-9a-fA-F]{6}$")
+
+
+def _check_hex_color(value: Optional[str]) -> Optional[str]:
+    """"#rrggbb" normalizado a minusculas. Validador explicito: el `regex=` de
+    Field no se aplica en los modelos no-tabla de SQLModel con Pydantic v2."""
+    if value is None:
+        return None
+    if not _HEX_COLOR.match(value):
+        raise ValueError("El color debe tener el formato #rrggbb.")
+    return value.lower()
+
+
+class CategoryColorUpdate(SQLModel):
+    # None = volver al color por defecto.
+    color: Optional[str] = None
+
+    _validate_color = field_validator("color")(_check_hex_color)
+
+
 class CategoryRead(SQLModel):
     id: int
     name: str
     slug: str
+    color: Optional[str] = None
     is_archived: bool
     archived_at: Optional[datetime] = None
     active_project_count: int
@@ -125,6 +148,8 @@ class TaskRead(SQLModel):
     id: int
     project_id: Optional[int] = None
     project_name: Optional[str] = None
+    # Bloque del proyecto; solo lo rellena la agenda (para el color del bloque).
+    category_id: Optional[int] = None
     name: str
     description: Optional[str] = None
     status: TaskStatus
@@ -140,6 +165,27 @@ class TaskRead(SQLModel):
     google_event_id: Optional[str] = None
     calendar_sync_warning: Optional[str] = None
     subtasks: list[SubtaskRead] = []
+
+
+# ---- Reglas de color de eventos ----
+class ColorRuleCreate(SQLModel):
+    keyword: str = Field(max_length=60)
+    color: str
+
+    _validate_color = field_validator("color")(_check_hex_color)
+
+
+class ColorRuleUpdate(SQLModel):
+    keyword: Optional[str] = Field(default=None, max_length=60)
+    color: Optional[str] = None
+
+    _validate_color = field_validator("color")(_check_hex_color)
+
+
+class ColorRuleRead(SQLModel):
+    id: int
+    keyword: str
+    color: str
 
 
 # ---- Agenda (calendario de la app) ----

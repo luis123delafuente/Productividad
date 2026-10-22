@@ -1,0 +1,34 @@
+.swatch-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.swatch {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--color-ink) 15%, transparent);
+  border-radius: 50%;
+}
+
+.swatch:hover {
+  transform: scale(1.12);
+}
+
+.swatch.is-selected {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
+}
+
+/* "Sin color": circulo vacio tachado. */
+.swatch--none {
+  background: linear-gradient(
+    135deg,
+    transparent calc(50% - 1px),
+    var(--color-ink-faint) calc(50% - 1px),
+    var(--color-ink-faint) calc(50% + 1px),
+    transparent calc(50% + 1px)
+  );
+  border-color: var(--color-ink-faint);
+}

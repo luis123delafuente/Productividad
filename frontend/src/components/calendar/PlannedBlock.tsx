@@ -3,6 +3,7 @@ import type { Task } from "../../api/types";
 import { useSetTaskStatus } from "../../hooks/useTasks";
 import { formatDuration, formatTime } from "../../lib/dates";
 import { BlockPopover } from "./BlockPopover";
+import { colorStyle, useCalendarColors } from "./colors";
 import { blockInterval, type PositionedItem } from "./layout";
 
 interface Props {
@@ -19,6 +20,7 @@ export function PlannedBlock({ task, pos, selected, popoverSide, onSelect }: Pro
     data: { task },
   });
   const setStatus = useSetTaskStatus();
+  const color = useCalendarColors().taskColor(task);
   const done = task.status === "Terminado";
   const { start, end } = blockInterval(task);
   const compact = pos.height < 40;
@@ -41,6 +43,7 @@ export function PlannedBlock({ task, pos, selected, popoverSide, onSelect }: Pro
       <div
         ref={setNodeRef}
         className={`cal-block ${done ? "is-done" : ""} ${isDragging ? "is-dragging" : ""} ${compact ? "is-compact" : ""}`}
+        style={colorStyle(color)}
         onClick={() => onSelect(selected ? null : task.id)}
         title={`${task.name} · ${formatTime(start)}–${formatTime(end)}`}
         {...listeners}

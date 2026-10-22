@@ -21,6 +21,9 @@ class Category(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(unique=True)
     slug: str = Field(unique=True, index=True)
+    # Color "#rrggbb" con el que se pintan en el calendario las tareas
+    # planificadas de este bloque. None = color por defecto de la app.
+    color: Optional[str] = None
     is_archived: bool = Field(default=False)
     archived_at: Optional[datetime] = None
 
@@ -102,6 +105,17 @@ class Subtask(SQLModel, table=True):
     is_checked: bool = Field(default=False)
 
     task: Task = Relationship(back_populates="subtasks")
+
+
+class EventColorRule(SQLModel, table=True):
+    """Regla de color para eventos de Google en el calendario de la app: si el
+    titulo contiene `keyword` (sin distinguir mayusculas ni acentos), el evento
+    se pinta con `color`. Gana la primera regla, por orden de creacion."""
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    keyword: str
+    color: str
+    created_at: datetime = Field(default_factory=datetime.now)
 
 
 class GoogleToken(SQLModel, table=True):

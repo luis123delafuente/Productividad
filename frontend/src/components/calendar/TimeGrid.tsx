@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import type { Agenda, Task } from "../../api/types";
 import { formatWeekday, isSameDay, toISODate } from "../../lib/dates";
+import { colorStyle, useCalendarColors } from "./colors";
 import { DayColumn, type DropPreview } from "./DayColumn";
 import { SLOT_HEIGHT, allDayCovers, layoutDay, type GridItem } from "./layout";
 
@@ -56,6 +57,7 @@ export function TimeGrid({
   const hours = Array.from({ length: lastHour - firstHour }, (_, i) => firstHour + i);
   const columns = `56px repeat(${days.length}, minmax(0, 1fr))`;
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  const { eventColor } = useCalendarColors();
 
   return (
     <div className={`cal-grid ${days.length === 1 ? "cal-grid--day" : ""}`}>
@@ -86,11 +88,19 @@ export function TimeGrid({
               {deadlines.map((task) => (
                 <DeadlineMarker key={task.id} task={task} />
               ))}
-              {events.map((event) => (
-                <span key={event.id} className="cal-allday-event" title={event.summary}>
-                  {event.summary}
-                </span>
-              ))}
+              {events.map((event) => {
+                const color = eventColor(event.summary);
+                return (
+                  <span
+                    key={event.id}
+                    className={`cal-allday-event ${color ? "has-color" : ""}`}
+                    style={colorStyle(color)}
+                    title={event.summary}
+                  >
+                    {event.summary}
+                  </span>
+                );
+              })}
             </div>
           );
         })}

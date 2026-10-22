@@ -200,6 +200,18 @@
   padding-block: 1px;
 }
 
+/* Evento con color por regla de palabra (--cal-color). */
+.cal-event.has-color {
+  background: color-mix(in srgb, var(--cal-color) 18%, var(--color-paper-raised));
+  border-color: color-mix(in srgb, var(--cal-color) 40%, transparent);
+  border-left: 3px solid var(--cal-color);
+  color: var(--color-ink);
+}
+
+.cal-event.has-color .cal-event__meta {
+  color: var(--color-ink-soft);
+}
+
 /* ---- Tarea planificada ---- */
 
 .cal-block {
@@ -209,9 +221,10 @@
   gap: 6px;
   overflow: hidden;
   padding: 3px 6px;
-  background: var(--color-petrol-soft);
-  border: 1px solid color-mix(in srgb, var(--color-petrol) 35%, transparent);
-  border-left: 3px solid var(--color-petrol);
+  /* --cal-color = color del bloque (categoria) de la tarea; petroleo si no tiene. */
+  background: color-mix(in srgb, var(--cal-color, var(--color-petrol)) 18%, var(--color-paper-raised));
+  border: 1px solid color-mix(in srgb, var(--cal-color, var(--color-petrol)) 40%, transparent);
+  border-left: 3px solid var(--cal-color, var(--color-petrol));
   border-radius: var(--radius-card);
   color: var(--color-ink);
   font-size: 12px;
@@ -225,7 +238,7 @@
 }
 
 .cal-item-slot.is-selected .cal-block {
-  outline: 2px solid var(--color-petrol);
+  outline: 2px solid var(--cal-color, var(--color-petrol));
   outline-offset: 1px;
 }
 
@@ -234,9 +247,7 @@
 }
 
 .cal-block.is-done {
-  opacity: 0.6;
-  border-left-color: var(--color-moss);
-  background: var(--color-moss-soft);
+  opacity: 0.55;
 }
 
 .cal-block.is-done .cal-block__name {
@@ -258,15 +269,14 @@
   place-items: center;
   font-size: 10px;
   line-height: 1;
-  border: 1.5px solid var(--color-petrol);
+  border: 1.5px solid var(--cal-color, var(--color-petrol));
   border-radius: 2px;
   background: var(--color-paper-raised);
   color: var(--color-paper-raised);
 }
 
 .cal-block.is-done .cal-block__check {
-  background: var(--color-moss);
-  border-color: var(--color-moss);
+  background: var(--cal-color, var(--color-petrol));
 }
 
 .cal-block__body {
@@ -359,6 +369,13 @@
   color: var(--color-ink-soft);
   background: var(--color-paper-sunken);
   border: 1px solid var(--color-rule);
+}
+
+.cal-allday-event.has-color {
+  color: var(--color-ink);
+  background: color-mix(in srgb, var(--cal-color) 18%, var(--color-paper-raised));
+  border-color: color-mix(in srgb, var(--cal-color) 40%, transparent);
+  border-left: 3px solid var(--cal-color);
 }
 
 /* ---- Popover de un bloque ---- */
@@ -535,6 +552,10 @@
 
 .cal-tray-card:hover {
   border-color: var(--color-ink-faint);
+}
+
+.cal-tray-card.has-color {
+  border-left: 3px solid var(--cal-color);
 }
 
 .cal-tray-card.is-dragging {

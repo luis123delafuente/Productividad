@@ -7,7 +7,7 @@ from sqlmodel import func, select
 
 from app.deps import CategoryDep, SessionDep
 from app.models import Category, Project
-from app.schemas import CategoryCreate, CategoryRead
+from app.schemas import CategoryColorUpdate, CategoryCreate, CategoryRead
 
 router = APIRouter(prefix="/api/categories", tags=["categories"])
 
@@ -78,6 +78,15 @@ def archive_category(category: CategoryDep, session: SessionDep):
 def reopen_category(category: CategoryDep, session: SessionDep):
     category.is_archived = False
     category.archived_at = None
+    session.add(category)
+    session.commit()
+    session.refresh(category)
+    return _to_read(session, category)
+
+
+@router.patch("/{category_id}/color", response_model=CategoryRead)
+def update_category_color(category: CategoryDep, body: CategoryColorUpdate, session: SessionDep):
+    category.color = body.color.lower() if body.color else None
     session.add(category)
     session.commit()
     session.refresh(category)

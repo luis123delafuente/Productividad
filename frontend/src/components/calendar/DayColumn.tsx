@@ -1,6 +1,7 @@
 import { useDroppable } from "@dnd-kit/core";
 import type { AgendaEvent } from "../../api/types";
 import { formatTime, toISODate } from "../../lib/dates";
+import { colorStyle, useCalendarColors } from "./colors";
 import { PlannedBlock } from "./PlannedBlock";
 import { SLOT_HEIGHT, SLOT_MINUTES, type PositionedItem } from "./layout";
 
@@ -24,6 +25,7 @@ interface Props {
 
 function EventBlock({ event, pos }: { event: AgendaEvent; pos: PositionedItem }) {
   const { start, end } = pos.item;
+  const color = useCalendarColors().eventColor(event.summary);
   return (
     <div
       className="cal-item-slot"
@@ -34,7 +36,11 @@ function EventBlock({ event, pos }: { event: AgendaEvent; pos: PositionedItem })
         width: `${100 / pos.lanes}%`,
       }}
     >
-      <div className={`cal-event ${pos.height < 40 ? "is-compact" : ""}`} title={`${event.summary} · ${formatTime(start)}–${formatTime(end)}`}>
+      <div
+        className={`cal-event ${color ? "has-color" : ""} ${pos.height < 40 ? "is-compact" : ""}`}
+        style={colorStyle(color)}
+        title={`${event.summary} · ${formatTime(start)}–${formatTime(end)}`}
+      >
         <span className="cal-event__name">{event.summary}</span>
         {pos.height >= 40 && (
           <span className="cal-event__meta">
