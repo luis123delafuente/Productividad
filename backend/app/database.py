@@ -30,6 +30,10 @@ def _add_missing_columns() -> None:
             connection.execute(text("ALTER TABLE task ADD COLUMN order_kanban INTEGER"))
         if "due_time" not in existing:
             connection.execute(text("ALTER TABLE task ADD COLUMN due_time TIME"))
+        if "planned_start" not in existing:
+            connection.execute(text("ALTER TABLE task ADD COLUMN planned_start DATETIME"))
+        if "planned_minutes" not in existing:
+            connection.execute(text("ALTER TABLE task ADD COLUMN planned_minutes INTEGER"))
 
         existing_settings = {row[1] for row in connection.execute(text("PRAGMA table_info(appsettings)"))}
         if existing_settings and "last_daily_today_reset_run" not in existing_settings:

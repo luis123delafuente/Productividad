@@ -1,7 +1,12 @@
-"""Espejo (mirror) entre tareas con fecha limite y eventos en el calendario
-PRIMARIO de Google.
+"""Espejo (mirror) entre entregas de tareas y eventos en el calendario
+PRIMARIO de Google, y lectura de los eventos para el calendario de la app.
 
 Reglas de negocio (no negociables, ver plan / requisitos del usuario):
+- Solo una entrega con fecha Y hora (due_date + due_time) tiene evento en
+  Google. Una tarea con solo fecha vive unicamente en la app. Los eventos
+  heredados de todo el dia (de antes de esta regla) se dejan como estan hasta
+  que se toca la fecha de su tarea. La decision vive en `routers/tasks.py`.
+- La planificacion (planned_start) NUNCA se manda a Google.
 - `task.google_event_id` es la unica fuente de verdad: un evento por tarea,
   nunca duplicado.
 - Completar una tarea (cambiar su `status`) NUNCA llama a este servicio.
@@ -159,29 +164,19 @@ DEFAULT_EVENT_DURATION = timedelta(hours=1)
 
 
 def _event_body_for_task(task: Task) -> dict:
-    """Dos formas de evento segun tenga hora o no:
+    """Bloque horario de DEFAULT_EVENT_DURATION a la hora de la entrega.
 
-    - Sin hora (fecha limite): evento de todo el dia, como hasta ahora.
-    - Con hora (una cita): bloque horario de DEFAULT_EVENT_DURATION. Se manda
-      el instante con el offset local dentro del propio ISO 8601 (RFC 3339),
-      que es lo que Google acepta sin necesidad de un campo `timeZone`; ese
-      campo exigiria un nombre IANA ("Europe/Madrid"), no la abreviatura que
-      da el sistema ("CEST"), asi que es mas seguro no mandarlo.
+    Solo se llama para entregas con fecha y hora. Se manda el instante con el
+    offset local dentro del propio ISO 8601 (RFC 3339), que es lo que Google
+    acepta sin necesidad de un campo `timeZone`; ese campo exigiria un nombre
+    IANA ("Europe/Madrid"), no la abreviatura que da el sistema ("CEST"), asi
+    que es mas seguro no mandarlo.
 
-    Google no permite pasar de un formato a otro dejando las claves antiguas
-    puestas, y `patch` hace merge: por eso el cuerpo manda SIEMPRE start y end
-    completos, de forma que cambiar la hora (o quitarla) reescriba el evento.
+    El cuerpo manda SIEMPRE start y end completos, de forma que un evento
+    heredado de todo el dia se reescribe al pasar a bloque horario.
     """
-    assert task.due_date is not None
+    assert task.due_date is not None and task.due_time is not None
     description = f"Tarea creada en la app de productividad (proyecto #{task.project_id})."
-
-    if task.due_time is None:
-        return {
-            "summary": task.name,
-            "description": description,
-            "start": {"date": task.due_date.isoformat()},
-            "end": {"date": (task.due_date + timedelta(days=1)).isoformat()},
-        }
 
     start = datetime.combine(task.due_date, task.due_time).astimezone()
     end = start + DEFAULT_EVENT_DURATION
@@ -255,26 +250,22 @@ def update_event_for_task(session: Session, task: Task) -> str | None:
         return "No se pudo actualizar el evento en Google Calendar. La fecha se guardo igualmente."
 
 
-def list_events_for_day(session: Session, day: date) -> list[dict] | None:
-    """Lectura (no escritura) de los eventos del calendario principal para un dia.
+def list_events(session: Session, start_day: date, end_day: date) -> list[dict] | None:
+    """Lectura (no escritura) de los eventos del calendario principal en el
+    rango [start_day, end_day), para el calendario de la app.
 
-    Usada por el asistente de IA para "Organizar mi dia". Convive con las
-    funciones de escritura de arriba sin conflicto: reutiliza el mismo token y
-    el mismo calendario, pero nunca modifica nada. Devuelve None si Google no
-    esta conectado o si la llamada falla (mismo criterio de "no bloquear" que
-    el resto de este modulo).
-
-    Filtra a eventos con `dateTime` (hora concreta), descartando los eventos de
-    todo el dia que esta misma app crea para tareas con fecha limite (serian un
-    "ocupado todo el dia" redundante y corromperian el calculo de huecos libres;
-    esa informacion ya le llega al asistente por otra via, el propio due_date).
+    Devuelve eventos con hora y de todo el dia, ya expandidos (recurrentes
+    incluidos) y sin cancelados: `{id, summary, start, end, all_day}`, con
+    start/end en ISO 8601 (`dateTime`) o fecha (`date`) segun `all_day`.
+    Devuelve None si Google no esta conectado o si la llamada falla (mismo
+    criterio de "no bloquear" que el resto de este modulo).
     """
     access_token = _get_valid_access_token(session)
     if access_token is None:
         return None
 
-    time_min = datetime.combine(day, time.min).astimezone().isoformat()
-    time_max = datetime.combine(day, time.max).astimezone().isoformat()
+    time_min = datetime.combine(start_day, time.min).astimezone().isoformat()
+    time_max = datetime.combine(end_day, time.min).astimezone().isoformat()
 
     try:
         response = httpx.get(
@@ -285,6 +276,7 @@ def list_events_for_day(session: Session, day: date) -> list[dict] | None:
                 "timeMax": time_max,
                 "singleEvents": "true",
                 "orderBy": "startTime",
+                "maxResults": 250,
             },
             timeout=10,
         )
@@ -296,18 +288,38 @@ def list_events_for_day(session: Session, day: date) -> list[dict] | None:
 
     events = []
     for item in items:
+        if item.get("status") == "cancelled":
+            continue
         start = item.get("start", {})
         end = item.get("end", {})
-        if "dateTime" not in start:
-            continue  # evento de todo el dia (p.ej. nuestro propio espejo de fecha limite): no es un bloque horario ocupado.
+        all_day = "dateTime" not in start
         events.append(
             {
+                "id": item.get("id"),
                 "summary": item.get("summary", "(sin titulo)"),
-                "start": start["dateTime"],
-                "end": end.get("dateTime"),
+                "start": start.get("date") if all_day else start["dateTime"],
+                "end": end.get("date") if all_day else end.get("dateTime"),
+                "all_day": all_day,
             }
         )
     return events
+
+
+def list_events_for_day(session: Session, day: date) -> list[dict] | None:
+    """Eventos con hora de un dia, para el asistente de IA ("Organizar mi dia").
+
+    Descarta los de todo el dia: no son un bloque horario ocupado y
+    corromperian el calculo de huecos libres (las entregas ya le llegan al
+    asistente por otra via, el propio due_date).
+    """
+    events = list_events(session, day, day + timedelta(days=1))
+    if events is None:
+        return None
+    return [
+        {"summary": e["summary"], "start": e["start"], "end": e["end"]}
+        for e in events
+        if not e["all_day"]
+    ]
 
 
 def delete_event_for_task(session: Session, task: Task) -> str | None:

@@ -221,28 +221,150 @@ def test_clearing_the_date_also_clears_the_time(client, project):
     assert updated["due_time"] is None
 
 
-def test_changing_only_the_time_updates_the_calendar_event(client, project, monkeypatch):
-    """Cambiar la hora no crea un evento nuevo ni borra el que hay: es el mismo
-    evento, que pasa de todo el dia a bloque horario (o al reves)."""
+def _record_calendar_calls(monkeypatch):
     from app.services import calendar_service
 
     calls = []
     for fn in ("create_event_for_task", "update_event_for_task", "delete_event_for_task"):
         monkeypatch.setattr(calendar_service, fn, lambda s, t, _fn=fn: calls.append(_fn))
+    return calls
 
-    task = client.post(
-        "/api/tasks", json={"project_id": project.id, "name": "reunion", "due_date": "2026-08-01"}
-    ).json()
+
+def test_only_date_and_time_together_create_a_google_event(client, project, monkeypatch):
+    """Regla: solo una entrega con fecha Y hora va a Google Calendar."""
+    calls = _record_calendar_calls(monkeypatch)
+
+    client.post("/api/tasks", json={"project_id": project.id, "name": "solo fecha", "due_date": "2026-08-01"})
+    assert calls == []
+
+    client.post(
+        "/api/tasks",
+        json={"project_id": project.id, "name": "entrega", "due_date": "2026-08-01", "due_time": "23:59"},
+    )
     assert calls == ["create_event_for_task"]
 
+
+def test_adding_and_removing_the_time_creates_and_deletes_the_event(client, project, monkeypatch):
+    calls = _record_calendar_calls(monkeypatch)
+
+    task = client.post(
+        "/api/tasks", json={"project_id": project.id, "name": "entrega", "due_date": "2026-08-01"}
+    ).json()
+
+    # Poner hora: la entrega pasa a tener evento (update crea si no habia).
     client.patch(f"/api/tasks/{task['id']}/due_date", json={"due_time": "10:30"})
-    assert calls == ["create_event_for_task", "update_event_for_task"]
+    assert calls == ["update_event_for_task"]
+
+    # Sin google_event_id (los fakes no lo guardan) no hay nada que borrar.
+    client.patch(f"/api/tasks/{task['id']}/due_date", json={"due_time": None})
+    assert calls == ["update_event_for_task"]
+
+
+def test_removing_the_time_deletes_an_existing_event(client, project, session, monkeypatch):
+    from app.models import Task
+
+    calls = _record_calendar_calls(monkeypatch)
+    task = client.post(
+        "/api/tasks", json={"project_id": project.id, "name": "entrega", "due_date": "2026-08-01", "due_time": "10:30"}
+    ).json()
+    db_task = session.get(Task, task["id"])
+    db_task.google_event_id = "evt-1"
+    session.add(db_task)
+    session.commit()
+    calls.clear()
 
     client.patch(f"/api/tasks/{task['id']}/due_date", json={"due_time": None})
-    assert calls == ["create_event_for_task", "update_event_for_task", "update_event_for_task"]
+    assert calls == ["delete_event_for_task"]
 
-    client.patch(f"/api/tasks/{task['id']}/due_date", json={"due_date": None})
-    assert calls[-1] == "delete_event_for_task"
+
+def test_legacy_all_day_event_is_left_alone_until_its_date_changes(client, project, session, monkeypatch):
+    """Eventos de todo el dia creados con la regla antigua: se quedan como estan
+    mientras no se toque la fecha; al tocarla se aplica la regla nueva."""
+    from datetime import date
+
+    from app.models import Task
+
+    calls = _record_calendar_calls(monkeypatch)
+    legacy = Task(project_id=project.id, name="vieja", due_date=date(2026, 8, 1), google_event_id="evt-old")
+    session.add(legacy)
+    session.commit()
+    session.refresh(legacy)
+
+    client.patch(f"/api/tasks/{legacy.id}", json={"name": "vieja renombrada"})
+    client.patch(f"/api/tasks/{legacy.id}/due_date", json={"due_date": "2026-08-01"})
+    assert calls == []
+
+    client.patch(f"/api/tasks/{legacy.id}/due_date", json={"due_date": "2026-08-02"})
+    assert calls == ["delete_event_for_task"]
+
+
+def test_legacy_all_day_event_becomes_timed_when_a_time_is_added(client, project, session, monkeypatch):
+    from datetime import date
+
+    from app.models import Task
+
+    calls = _record_calendar_calls(monkeypatch)
+    legacy = Task(project_id=project.id, name="vieja", due_date=date(2026, 8, 1), google_event_id="evt-old")
+    session.add(legacy)
+    session.commit()
+    session.refresh(legacy)
+
+    client.patch(f"/api/tasks/{legacy.id}/due_date", json={"due_time": "09:00"})
+    assert calls == ["update_event_for_task"]
+
+
+def test_planning_defaults_to_one_hour_and_null_clears_it(client, project):
+    task = client.post("/api/tasks", json={"project_id": project.id, "name": "estudiar"}).json()
+    assert task["planned_start"] is None
+
+    planned = client.patch(f"/api/tasks/{task['id']}/planning", json={"planned_start": "2026-10-20T16:00:00"}).json()
+    assert planned["planned_start"] == "2026-10-20T16:00:00"
+    assert planned["planned_minutes"] == 60
+
+    resized = client.patch(f"/api/tasks/{task['id']}/planning", json={"planned_minutes": 90}).json()
+    assert resized["planned_minutes"] == 90
+    assert resized["planned_start"] == "2026-10-20T16:00:00"
+
+    moved = client.patch(f"/api/tasks/{task['id']}/planning", json={"planned_start": "2026-10-21T09:30:00"}).json()
+    assert moved["planned_minutes"] == 90  # moverla conserva la duracion
+
+    cleared = client.patch(f"/api/tasks/{task['id']}/planning", json={"planned_start": None}).json()
+    assert cleared["planned_start"] is None
+    assert cleared["planned_minutes"] is None
+
+
+def test_planning_rejects_out_of_range_durations(client, project):
+    task = client.post("/api/tasks", json={"project_id": project.id, "name": "estudiar"}).json()
+    resp = client.patch(f"/api/tasks/{task['id']}/planning", json={"planned_minutes": 0})
+    assert resp.status_code == 422
+
+
+def test_planning_never_touches_google_calendar(client, project, monkeypatch):
+    calls = _record_calendar_calls(monkeypatch)
+    task = client.post(
+        "/api/tasks", json={"project_id": project.id, "name": "entrega", "due_date": "2026-08-01", "due_time": "10:30"}
+    ).json()
+    calls.clear()
+
+    client.patch(f"/api/tasks/{task['id']}/planning", json={"planned_start": "2026-07-30T16:00:00"})
+    client.patch(f"/api/tasks/{task['id']}/planning", json={"planned_start": None})
+    assert calls == []
+
+
+def test_update_task_planning_never_calls_calendar_service():
+    import ast
+    import inspect
+
+    from app.routers import tasks as tasks_router
+
+    source = inspect.getsource(tasks_router.update_task_planning)
+    calls = [
+        node.func.attr
+        for node in ast.walk(ast.parse(source))
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+    ]
+    assert not any(name.endswith("_event_for_task") for name in calls)
+    assert "calendar_service" not in source
 
 
 def test_repeating_the_same_date_and_time_does_not_touch_the_calendar(client, project, monkeypatch):

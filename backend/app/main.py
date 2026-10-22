@@ -10,7 +10,7 @@ from sqlmodel import Session
 from app.backup import backup_database
 from app.config import get_settings
 from app.database import engine, init_db
-from app.routers import archive, assistant, calendar_oauth, categories, kanban, projects, subtasks, tasks, today
+from app.routers import agenda, archive, assistant, calendar_oauth, categories, kanban, projects, subtasks, tasks, today
 from app.seed import run_seed
 from app.services.archive_service import check_and_run_daily_today_reset, check_and_run_weekly_archive
 
@@ -46,6 +46,7 @@ app.include_router(today.router)
 app.include_router(kanban.router)
 app.include_router(archive.router)
 app.include_router(calendar_oauth.router)
+app.include_router(agenda.router)
 app.include_router(assistant.router)
 
 

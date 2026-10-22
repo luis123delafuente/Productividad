@@ -87,18 +87,6 @@ def test_delete_event_for_task_is_noop_without_event_id(session):
     calendar_service.delete_event_for_task(session, task)
 
 
-def test_event_body_is_all_day_without_time():
-    from datetime import date
-
-    from app.models import Task
-    from app.services import calendar_service
-
-    body = calendar_service._event_body_for_task(Task(name="entregar informe", due_date=date(2026, 8, 1)))
-
-    assert body["start"] == {"date": "2026-08-01"}
-    assert body["end"] == {"date": "2026-08-02"}
-
-
 def test_event_body_is_a_timed_block_when_the_task_has_a_time():
     from datetime import date, datetime, time
 
@@ -223,3 +211,53 @@ def test_disconnect_clears_needs_reauth(monkeypatch, session):
     token = session.get(GoogleToken, 1)
     assert token.needs_reauth is False
     assert token.connected is False
+
+
+def _fake_google_items(monkeypatch, items):
+    from app.services import calendar_service
+
+    class FakeResponse:
+        status_code = 200
+
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"items": items}
+
+    monkeypatch.setattr(calendar_service, "_get_valid_access_token", lambda s: "tok")
+    monkeypatch.setattr(calendar_service.httpx, "get", lambda url, headers=None, params=None, timeout=None: FakeResponse())
+
+
+GOOGLE_ITEMS = [
+    {"id": "a", "summary": "Reunion", "start": {"dateTime": "2026-10-22T10:00:00+02:00"}, "end": {"dateTime": "2026-10-22T11:00:00+02:00"}},
+    {"id": "b", "summary": "Festivo", "start": {"date": "2026-10-22"}, "end": {"date": "2026-10-23"}},
+    {"id": "c", "status": "cancelled", "start": {"dateTime": "2026-10-22T12:00:00+02:00"}, "end": {}},
+]
+
+
+def test_list_events_returns_timed_and_all_day_without_cancelled(monkeypatch, session):
+    from datetime import date
+
+    from app.services import calendar_service
+
+    _fake_google_items(monkeypatch, GOOGLE_ITEMS)
+
+    events = calendar_service.list_events(session, date(2026, 10, 19), date(2026, 10, 26))
+
+    assert events == [
+        {"id": "a", "summary": "Reunion", "start": "2026-10-22T10:00:00+02:00", "end": "2026-10-22T11:00:00+02:00", "all_day": False},
+        {"id": "b", "summary": "Festivo", "start": "2026-10-22", "end": "2026-10-23", "all_day": True},
+    ]
+
+
+def test_list_events_for_day_keeps_only_timed_events_for_the_assistant(monkeypatch, session):
+    from datetime import date
+
+    from app.services import calendar_service
+
+    _fake_google_items(monkeypatch, GOOGLE_ITEMS)
+
+    assert calendar_service.list_events_for_day(session, date(2026, 10, 22)) == [
+        {"summary": "Reunion", "start": "2026-10-22T10:00:00+02:00", "end": "2026-10-22T11:00:00+02:00"}
+    ]

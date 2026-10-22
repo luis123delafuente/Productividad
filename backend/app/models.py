@@ -62,6 +62,11 @@ class Task(SQLModel, table=True):
     # pasa de ser de todo el dia a un bloque horario. Nunca tiene sentido
     # sin due_date, y quitar la fecha la borra tambien.
     due_time: Optional[time] = None
+    # Planificacion: cuando se piensa HACER la tarea (bloque en el calendario
+    # de la app). Independiente de la entrega (due_date/due_time) y nunca se
+    # manda a Google. None = sin planificar (aparece en la bandeja).
+    planned_start: Optional[datetime] = None
+    planned_minutes: Optional[int] = None
     created_at: datetime = Field(default_factory=datetime.now)
 
     # Archivado semanal automático (independiente del archivado de proyecto).

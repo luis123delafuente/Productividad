@@ -6,6 +6,7 @@ from app.schemas import (
     TaskCreate,
     TaskDueDateUpdate,
     TaskInTodayUpdate,
+    TaskPlanningUpdate,
     TaskRead,
     TaskStatusUpdate,
     TaskUpdate,
@@ -14,6 +15,9 @@ from app.services import calendar_service
 from app.services.archive_service import restore_task
 
 router = APIRouter(prefix="/api/tasks", tags=["tasks"])
+
+# Duracion de un bloque planificado cuando no se indica otra.
+DEFAULT_PLANNED_MINUTES = 60
 
 
 def _to_read(task: Task, warning: str | None = None) -> TaskRead:
@@ -33,10 +37,16 @@ def create_task(body: TaskCreate, session: SessionDep):
     session.refresh(task)
 
     warning = None
-    if task.due_date is not None:
+    if _wants_event(task):
         warning = calendar_service.create_event_for_task(session, task)
         session.refresh(task)
     return _to_read(task, warning)
+
+
+def _wants_event(task: Task) -> bool:
+    """Solo una entrega con dia Y hora se refleja en Google Calendar. Una tarea
+    con solo fecha limite vive unicamente en la app (marcador en su calendario)."""
+    return task.due_date is not None and task.due_time is not None
 
 
 @router.get("/{task_id}", response_model=TaskRead)
@@ -89,16 +99,41 @@ def update_task_due_date(task: TaskDep, body: TaskDueDateUpdate, session: Sessio
     session.refresh(task)
 
     warning = None
-    if old_date is None and new_date is not None:
-        warning = calendar_service.create_event_for_task(session, task)
-    elif old_date is not None and new_date is None:
-        warning = calendar_service.delete_event_for_task(session, task)
-    elif new_date is not None and (old_date, old_time) != (new_date, new_time):
-        # Incluye poner, cambiar o quitar solo la hora: el evento pasa de bloque
-        # horario a dia completo (o al reves) sin dejar de ser el mismo evento.
-        warning = calendar_service.update_event_for_task(session, task)
+    if (old_date, old_time) != (new_date, new_time):
+        if _wants_event(task):
+            # Crea el evento si no lo habia, o reescribe el existente (incluido
+            # un evento heredado de todo el dia, que pasa a bloque horario).
+            warning = calendar_service.update_event_for_task(session, task)
+        elif task.google_event_id:
+            # Sin fecha o sin hora ya no hay evento. Los eventos heredados de
+            # todo el dia solo se borran aqui, cuando se toca la fecha de su tarea.
+            warning = calendar_service.delete_event_for_task(session, task)
     session.refresh(task)
     return _to_read(task, warning)
+
+
+@router.patch("/{task_id}/planning", response_model=TaskRead)
+def update_task_planning(task: TaskDep, body: TaskPlanningUpdate, session: SessionDep):
+    """Planificacion (cuando se hace la tarea) en el calendario de la app.
+
+    NUNCA toca Google Calendar: la planificacion vive solo en la app. Mismo
+    criterio que due_date para campos omitidos frente a null.
+    """
+    sent = body.model_fields_set
+    if "planned_start" in sent:
+        task.planned_start = body.planned_start
+    if "planned_minutes" in sent:
+        task.planned_minutes = body.planned_minutes
+
+    if task.planned_start is None:
+        task.planned_minutes = None
+    elif task.planned_minutes is None:
+        task.planned_minutes = DEFAULT_PLANNED_MINUTES
+
+    session.add(task)
+    session.commit()
+    session.refresh(task)
+    return _to_read(task)
 
 
 @router.patch("/{task_id}/in_today", response_model=TaskRead)

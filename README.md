@@ -81,15 +81,18 @@ sirve el contenido de `frontend/dist` tal cual esté en ese momento.
 
 ## 3. Conectar Google Calendar (paso manual, una sola vez)
 
-La integración crea/actualiza/borra un evento en tu calendario **principal** de Google
-por cada tarea con fecha límite. Completar una tarea antes de su fecha límite nunca
-borra el evento (queda como registro).
+La integración hace dos cosas con tu calendario **principal** de Google:
 
-Una tarea puede llevar además **hora** (campo opcional junto a la fecha), pensado para
-reuniones y citas: sin hora, el evento es de todo el día (una fecha límite); con hora,
-pasa a ser un bloque horario de **1 hora** a partir de esa hora. Poner o quitar la hora
-reescribe el mismo evento, no crea uno nuevo, y quitar la fecha se lleva la hora con
-ella (una hora sin día no significa nada). Para habilitarla:
+- **Escribe** un evento solo para las tareas cuya entrega tiene **fecha y hora**: un
+  bloque de **1 hora** a esa hora. Una tarea con solo fecha no va a Google. Quitar la
+  hora o la fecha borra el evento, y cambiarlas lo actualiza. Completar una tarea nunca
+  borra su evento (queda como registro). Los eventos de todo el día creados antes de
+  esta regla se quedan como están hasta que cambies la fecha de su tarea.
+- **Lee** tus eventos para mostrarlos en la pantalla **Calendario** de la app, junto a
+  tus tareas planificadas. La planificación (cuándo piensas hacer una tarea) vive solo
+  en la app y nunca se envía a Google.
+
+Para habilitarla:
 
 1. Ve a [Google Cloud Console](https://console.cloud.google.com/) y crea un proyecto
    nuevo (o usa uno existente).

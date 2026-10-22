@@ -1,7 +1,7 @@
 from datetime import date, datetime, time
 from typing import Any, Optional
 
-from sqlmodel import SQLModel
+from sqlmodel import Field, SQLModel
 
 from app.models import TaskPriority, TaskStatus
 
@@ -97,6 +97,14 @@ class TaskDueDateUpdate(SQLModel):
     due_time: Optional[time] = None
 
 
+class TaskPlanningUpdate(SQLModel):
+    """Mismo criterio que TaskDueDateUpdate: omitir un campo lo deja como
+    esta, mandar planned_start a null quita la tarea del calendario."""
+
+    planned_start: Optional[datetime] = None
+    planned_minutes: Optional[int] = Field(default=None, ge=5, le=720)
+
+
 class TaskInTodayUpdate(SQLModel):
     in_today: bool
 
@@ -123,6 +131,8 @@ class TaskRead(SQLModel):
     priority: TaskPriority
     due_date: Optional[date] = None
     due_time: Optional[time] = None
+    planned_start: Optional[datetime] = None
+    planned_minutes: Optional[int] = None
     created_at: datetime
     is_archived: bool
     archived_at: Optional[datetime] = None
@@ -130,6 +140,32 @@ class TaskRead(SQLModel):
     google_event_id: Optional[str] = None
     calendar_sync_warning: Optional[str] = None
     subtasks: list[SubtaskRead] = []
+
+
+# ---- Agenda (calendario de la app) ----
+class AgendaEvent(SQLModel):
+    """Evento de Google Calendar, de solo lectura. start/end son ISO 8601
+    (`dateTime`) o, si `all_day`, fechas YYYY-MM-DD (end exclusivo)."""
+
+    id: str
+    summary: str
+    start: str
+    end: Optional[str] = None
+    all_day: bool
+
+
+class AgendaGoogleStatus(SQLModel):
+    connected: bool
+    needs_reauth: bool = False
+    # Conectado y con token valido, pero la lectura de eventos fallo.
+    error: bool = False
+
+
+class AgendaResponse(SQLModel):
+    blocks: list["TaskRead"]
+    deadlines: list["TaskRead"]
+    events: list[AgendaEvent]
+    google: AgendaGoogleStatus
 
 
 # ---- Today ----
