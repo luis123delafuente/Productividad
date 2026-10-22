@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date, datetime, time
 from typing import Any, Optional
 
 from sqlmodel import SQLModel
@@ -7,10 +7,16 @@ from app.models import TaskPriority, TaskStatus
 
 
 # ---- Category ----
+class CategoryCreate(SQLModel):
+    name: str
+
+
 class CategoryRead(SQLModel):
     id: int
     name: str
     slug: str
+    is_archived: bool
+    archived_at: Optional[datetime] = None
     active_project_count: int
     archived_project_count: int
 
@@ -60,12 +66,15 @@ class SubtaskRead(SQLModel):
 
 # ---- Task ----
 class TaskCreate(SQLModel):
-    project_id: int
+    # None = tarea suelta creada directamente desde Hoy, sin proyecto.
+    project_id: Optional[int] = None
     name: str
     description: Optional[str] = None
     priority: TaskPriority = TaskPriority.media
     status: TaskStatus = TaskStatus.pendiente
     due_date: Optional[date] = None
+    due_time: Optional[time] = None
+    in_today: bool = False
 
 
 class TaskUpdate(SQLModel):
@@ -80,22 +89,40 @@ class TaskStatusUpdate(SQLModel):
 
 
 class TaskDueDateUpdate(SQLModel):
+    """Ambos campos son opcionales y se distinguen por `model_fields_set`:
+    omitir uno lo deja como esta, mandarlo a null lo borra. Sin eso, el
+    frontend que solo manda la fecha borraria la hora sin querer."""
+
     due_date: Optional[date] = None
+    due_time: Optional[time] = None
 
 
 class TaskInTodayUpdate(SQLModel):
     in_today: bool
 
 
+class TaskReorderRequest(SQLModel):
+    """Lista completa de ids ya en el orden final deseado (tal cual queda tras
+    el drag & drop en el frontend), no una operacion incremental."""
+
+    task_ids: list[int]
+
+
+class KanbanReorderRequest(SQLModel):
+    status: TaskStatus
+    task_ids: list[int]
+
+
 class TaskRead(SQLModel):
     id: int
-    project_id: int
-    project_name: str
+    project_id: Optional[int] = None
+    project_name: Optional[str] = None
     name: str
     description: Optional[str] = None
     status: TaskStatus
     priority: TaskPriority
     due_date: Optional[date] = None
+    due_time: Optional[time] = None
     created_at: datetime
     is_archived: bool
     archived_at: Optional[datetime] = None
@@ -114,6 +141,7 @@ class TodayResponse(SQLModel):
 # ---- Calendar ----
 class CalendarStatus(SQLModel):
     connected: bool
+    needs_reauth: bool = False
     google_account_email: Optional[str] = None
 
 

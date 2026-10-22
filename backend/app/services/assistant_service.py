@@ -42,20 +42,30 @@ GROQ_BASE_URL = "https://api.groq.com/openai/v1"
 SYSTEM_PROMPT = """Eres la secretaria personal dentro de una app de productividad de un solo usuario.
 Hoy es {today}.
 
-Tu trabajo es ayudar a organizar el dia, priorizar y desglosar tareas en subtareas,
-basandote siempre en los datos reales que se te dan a continuacion (categorias,
-proyectos, tareas, y si aplica los eventos de hoy en el calendario) -- nunca en
-respuestas genericas desconectadas de esos datos.
+Tu trabajo es ayudar a organizar el dia, priorizar, crear tareas nuevas, editar
+las existentes y desglosarlas en subtareas, basandote siempre en los datos
+reales que se te dan a continuacion (categorias, proyectos, tareas, y si
+aplica los eventos de hoy en el calendario) -- nunca en respuestas genericas
+desconectadas de esos datos.
 
 Reglas estrictas:
 - NUNCA ejecutas ni aplicas ningun cambio por ti misma. Toda accion concreta
-  (crear una subtarea, cambiar prioridad o estado, mover de proyecto, archivar,
-  eliminar, anadir/quitar de Hoy, reabrir un proyecto) se propone EXCLUSIVAMENTE
-  llamando a la funcion correspondiente. Nunca digas en tu texto que "ya"
-  hiciste algo -- todo esta pendiente de confirmacion del usuario.
-- Si una peticion implica varias acciones (p.ej. mover 5 tareas y cambiar 2
-  prioridades), llama a una funcion por cada accion individual -- cada una se
-  confirmara por separado, nunca en bloque.
+  (crear una tarea, editar su nombre o descripcion, crear una subtarea, cambiar
+  prioridad o estado, mover de proyecto, archivar, eliminar, anadir/quitar de
+  Hoy, reabrir un proyecto) se propone EXCLUSIVAMENTE llamando a la funcion
+  correspondiente. Nunca digas en tu texto que "ya" hiciste algo -- todo esta
+  pendiente de confirmacion del usuario.
+- Si una peticion implica varias acciones distintas (p.ej. mover 5 tareas o
+  cambiar 2 prioridades), llama a una funcion por cada accion individual --
+  cada una se confirmara por separado, nunca en bloque.
+- Si te piden crear 2 o mas tareas en el mismo mensaje (aunque sean 15), usa
+  SIEMPRE "propose_create_tasks" (en plural) UNA SOLA VEZ, con todos los
+  nombres juntos en el parametro "names" -- nunca llames repetidamente a
+  "propose_create_task" (singular) para esto, porque a mitad de una lista
+  larga es facil perder la cuenta y dejarte tareas sin crear. Cada nombre de
+  "names" seguira generando su propia tarjeta de confirmacion individual, asi
+  que la regla de "nunca en bloque" se sigue cumpliendo igual. Usa
+  "propose_create_task" (singular) solo cuando sea una unica tarea nueva.
 - Si el usuario pide centrarse solo en un proyecto o categoria concreta en su
   mensaje, razona y propone principalmente sobre eso, aunque tengas visibilidad
   completa (puedes usarla para avisar de conflictos con otras cosas).
@@ -84,8 +94,109 @@ def _client() -> openai.OpenAI:
 
 # Definicion canonica de cada accion proponible. Cada una acepta solo
 # parametros escalares (nunca arrays) para que una propuesta jamas pueda
-# mutar mas de un recurso a la vez.
+# mutar mas de un recurso a la vez. La UNICA excepcion es
+# "propose_create_tasks" (plural, mas abajo): su array "names" nunca llega a
+# actions_service como lote -- _build_proposals lo explota aqui mismo, en el
+# servicio de chat, en una Proposal independiente por nombre (cada una con su
+# propia tarjeta de confirmacion). Existe solo porque pedirle al modelo que
+# repita N veces una llamada a "propose_create_task" para listas largas (10+)
+# no es fiable: tiende a parar a mitad de la lista.
 _ACTION_TOOLS = [
+    {
+        "name": "propose_create_task",
+        "description": "Propone crear una tarea nueva.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string"},
+                "description": {"type": ["string", "null"]},
+                "project_id": {
+                    "type": ["integer", "null"],
+                    "description": "Id de un proyecto activo existente, o null para crearla suelta (sin proyecto).",
+                },
+                "priority": {
+                    "type": ["string", "null"],
+                    "enum": ["Alta", "Media", "Baja", None],
+                    "description": "Si se omite o es null, se crea con prioridad Media.",
+                },
+                "due_date": {
+                    "type": ["string", "null"],
+                    "description": "Formato YYYY-MM-DD, o null si no tiene fecha limite.",
+                },
+                "due_time": {
+                    "type": ["string", "null"],
+                    "description": (
+                        "Hora concreta dentro de due_date, formato HH:MM (24h), para citas y reuniones. "
+                        "null si es solo una fecha limite sin hora. Requiere due_date."
+                    ),
+                },
+                "in_today": {
+                    "type": ["boolean", "null"],
+                    "description": "Si debe anadirse directamente a la vista Hoy. null equivale a false.",
+                },
+            },
+            "required": ["name"],
+        },
+    },
+    {
+        "name": "propose_create_tasks",
+        "description": (
+            "Propone crear VARIAS tareas nuevas de una vez (2 o mas), todas con el mismo "
+            "project_id/priority/due_date/in_today pero cada una con su propio nombre. "
+            "Usa esta funcion (no 'propose_create_task' repetida) siempre que te pidan crear "
+            "varias tareas en el mismo mensaje, aunque sean muchas -- sigue generando una "
+            "tarjeta de confirmacion por tarea, solo evita que se te olvide alguna a mitad."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "names": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Lista completa de nombres, uno por tarea, en el orden deseado.",
+                },
+                "description": {"type": ["string", "null"]},
+                "project_id": {
+                    "type": ["integer", "null"],
+                    "description": "Id de un proyecto activo existente, o null para crearlas sueltas (sin proyecto).",
+                },
+                "priority": {
+                    "type": ["string", "null"],
+                    "enum": ["Alta", "Media", "Baja", None],
+                    "description": "Si se omite o es null, se crean con prioridad Media.",
+                },
+                "due_date": {
+                    "type": ["string", "null"],
+                    "description": "Formato YYYY-MM-DD, o null si no tienen fecha limite.",
+                },
+                "due_time": {
+                    "type": ["string", "null"],
+                    "description": (
+                        "Hora concreta dentro de due_date, formato HH:MM (24h), para citas y reuniones. "
+                        "null si es solo una fecha limite sin hora. Requiere due_date."
+                    ),
+                },
+                "in_today": {
+                    "type": ["boolean", "null"],
+                    "description": "Si deben anadirse directamente a la vista Hoy. null equivale a false.",
+                },
+            },
+            "required": ["names"],
+        },
+    },
+    {
+        "name": "propose_edit_task",
+        "description": "Propone cambiar el nombre y/o la descripcion de una tarea existente.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "task_id": {"type": "integer"},
+                "name": {"type": ["string", "null"]},
+                "description": {"type": ["string", "null"]},
+            },
+            "required": ["task_id"],
+        },
+    },
     {
         "name": "propose_create_subtask",
         "description": "Propone anadir una subtarea (checklist) a una tarea existente.",
@@ -124,7 +235,10 @@ _ACTION_TOOLS = [
     },
     {
         "name": "propose_update_due_date",
-        "description": "Propone cambiar (o quitar, pasando null) la fecha limite de una tarea.",
+        "description": (
+            "Propone cambiar (o quitar, pasando null) la fecha limite de una tarea, "
+            "y opcionalmente su hora."
+        ),
         "parameters": {
             "type": "object",
             "properties": {
@@ -132,6 +246,13 @@ _ACTION_TOOLS = [
                 "due_date": {
                     "type": ["string", "null"],
                     "description": "Formato YYYY-MM-DD, o null para quitarla.",
+                },
+                "due_time": {
+                    "type": ["string", "null"],
+                    "description": (
+                        "Hora concreta dentro de due_date, formato HH:MM (24h), para citas y reuniones. "
+                        "null si es solo una fecha limite sin hora. Requiere due_date."
+                    ),
                 },
             },
             "required": ["task_id", "due_date"],
@@ -205,6 +326,7 @@ def _build_summary(session: Session, action: str, params: dict) -> str | None:
     project: Project | None = None
 
     if action in (
+        "edit_task",
         "create_subtask",
         "update_priority",
         "update_status",
@@ -223,6 +345,26 @@ def _build_summary(session: Session, action: str, params: dict) -> str | None:
         if project is None:
             return None
 
+    if action == "create_task":
+        name = params.get("name")
+        if not name:
+            return None
+        target_project_id = params.get("project_id")
+        if target_project_id is not None:
+            target_project = session.get(Project, target_project_id)
+            if target_project is None:
+                return None
+            return f'Crear tarea "{name}" en el proyecto "{target_project.name}"'
+        return f'Crear tarea "{name}" (sin proyecto)'
+    if action == "edit_task":
+        changes = []
+        if params.get("name"):
+            changes.append(f'nombre a "{params["name"]}"')
+        if params.get("description") is not None:
+            changes.append("descripcion")
+        if not changes:
+            return None
+        return f'Editar tarea "{task.name}": cambiar {" y ".join(changes)}'
     if action == "create_subtask":
         return f'Anadir subtarea "{params["name"]}" a la tarea "{task.name}"'
     if action == "update_priority":
@@ -231,7 +373,9 @@ def _build_summary(session: Session, action: str, params: dict) -> str | None:
         return f'Mover "{task.name}" a "{params["status"]}"'
     if action == "update_due_date":
         due = params.get("due_date")
-        return f'Cambiar fecha limite de "{task.name}" a {due or "sin fecha"}'
+        at = params.get("due_time")
+        when = f"{due} a las {at}" if due and at else (due or "sin fecha")
+        return f'Cambiar fecha limite de "{task.name}" a {when}'
     if action == "add_to_today":
         return f'Anadir "{task.name}" a Hoy'
     if action == "remove_from_today":
@@ -247,22 +391,54 @@ def _build_summary(session: Session, action: str, params: dict) -> str | None:
     return None
 
 
-def _build_proposal(session: Session, tool_call) -> Proposal | None:
+def _build_bulk_create_task_proposals(session: Session, call_id: str, params: dict) -> list[Proposal]:
+    """Explota 'propose_create_tasks' (plural) en una Proposal 'create_task'
+    independiente por nombre -- nunca llega a actions_service como lote, ver
+    el comentario sobre la excepcion de array en _ACTION_TOOLS."""
+    names = params.get("names")
+    if not isinstance(names, list) or not names:
+        return []
+
+    shared = {
+        "project_id": params.get("project_id"),
+        "description": params.get("description"),
+        "priority": params.get("priority"),
+        "due_date": params.get("due_date"),
+        "due_time": params.get("due_time"),
+        "in_today": params.get("in_today"),
+    }
+
+    proposals = []
+    for i, task_name in enumerate(names):
+        if not isinstance(task_name, str) or not task_name.strip():
+            continue
+        task_params = {"name": task_name, **shared}
+        summary = _build_summary(session, "create_task", task_params)
+        if summary is None:
+            continue
+        proposals.append(Proposal(id=f"{call_id}_{i}", action="create_task", summary=summary, params=task_params))
+    return proposals
+
+
+def _build_proposals(session: Session, tool_call) -> list[Proposal]:
     name = tool_call.function.name
     if not name.startswith("propose_"):
-        return None
+        return []
     action = name[len("propose_") :]
 
     try:
         params = json.loads(tool_call.function.arguments)
     except (json.JSONDecodeError, TypeError):
         logger.warning("El modelo devolvio argumentos no parseables para %s: %r", name, tool_call.function.arguments)
-        return None
+        return []
+
+    if action == "create_tasks":
+        return _build_bulk_create_task_proposals(session, tool_call.id, params)
 
     summary = _build_summary(session, action, params)
     if summary is None:
-        return None
-    return Proposal(id=tool_call.id, action=action, summary=summary, params=params)
+        return []
+    return [Proposal(id=tool_call.id, action=action, summary=summary, params=params)]
 
 
 def _calendar_context_text(session: Session) -> str:
@@ -315,8 +491,6 @@ def run_chat_turn(
 
     proposals = []
     for tool_call in choice_message.tool_calls or []:
-        proposal = _build_proposal(session, tool_call)
-        if proposal is not None:
-            proposals.append(proposal)
+        proposals.extend(_build_proposals(session, tool_call))
 
     return {"reply": reply_text, "proposals": proposals}

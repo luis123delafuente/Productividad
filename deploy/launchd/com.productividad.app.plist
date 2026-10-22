@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.productividad.app</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/luisdelafuentemartinez/Desktop/Trabajo/Proyectos/Productividad/backend/scripts/run_server.sh</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/luisdelafuentemartinez/Desktop/Trabajo/Proyectos/Productividad/backend</string>
+
+    <!-- Arranca automaticamente al iniciar sesion -->
+    <key>RunAtLoad</key>
+    <true/>
+
+    <!-- Si el proceso muere, launchd lo reinicia solo -->
+    <key>KeepAlive</key>
+    <true/>
+
+    <!-- Minimo de segundos entre reintentos, para no saturar el log si algo
+         falla de forma repetida (p.ej. puerto ocupado por otro proceso) -->
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+
+    <key>StandardOutPath</key>
+    <string>/Users/luisdelafuentemartinez/Library/Logs/Productividad/server.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/luisdelafuentemartinez/Library/Logs/Productividad/server.log</string>
+</dict>
+</plist>

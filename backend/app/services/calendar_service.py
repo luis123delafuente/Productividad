@@ -72,6 +72,7 @@ def exchange_code_for_tokens(session: Session, code: str) -> GoogleToken:
     token.token_expiry = datetime.now() + timedelta(seconds=payload.get("expires_in", 3600))
     token.scope = payload.get("scope")
     token.connected = True
+    token.needs_reauth = False
     session.add(token)
     session.commit()
     session.refresh(token)
@@ -91,33 +92,49 @@ def disconnect(session: Session) -> None:
     token.refresh_token = None
     token.token_expiry = None
     token.connected = False
+    token.needs_reauth = False
     token.google_account_email = None
     session.add(token)
     session.commit()
 
 
 def _get_valid_access_token(session: Session) -> str | None:
-    """Devuelve un access token valido, refrescandolo si hace falta. None si no hay conexion."""
+    """Devuelve un access token valido, refrescandolo si hace falta. None si no hay conexion.
+
+    Si Google rechaza el refresh token (400/401: caducado, revocado o cliente
+    invalido) se marca `needs_reauth` para que la app lo avise al usuario en
+    vez de dejar de sincronizar en silencio. Un fallo transitorio (red caida,
+    5xx, 429) NO lo marca: reintentara en la siguiente llamada.
+    """
     token = session.get(GoogleToken, 1)
-    if token is None or not token.connected or not token.refresh_token:
+    if token is None or not token.connected or not token.refresh_token or token.needs_reauth:
         return None
 
     if token.token_expiry and token.token_expiry > datetime.now() + timedelta(seconds=30):
         return token.access_token
 
     settings = get_settings()
-    response = httpx.post(
-        TOKEN_URL,
-        data={
-            "refresh_token": token.refresh_token,
-            "client_id": settings.google_client_id,
-            "client_secret": settings.google_client_secret,
-            "grant_type": "refresh_token",
-        },
-        timeout=10,
-    )
+    try:
+        response = httpx.post(
+            TOKEN_URL,
+            data={
+                "refresh_token": token.refresh_token,
+                "client_id": settings.google_client_id,
+                "client_secret": settings.google_client_secret,
+                "grant_type": "refresh_token",
+            },
+            timeout=10,
+        )
+    except httpx.HTTPError as exc:
+        logger.warning("No se pudo contactar con Google para refrescar el token: %s", exc)
+        return None
+
     if response.status_code != 200:
         logger.warning("No se pudo refrescar el token de Google: %s", response.text)
+        if response.status_code in (400, 401):
+            token.needs_reauth = True
+            session.add(token)
+            session.commit()
         return None
 
     payload = response.json()
@@ -128,16 +145,51 @@ def _get_valid_access_token(session: Session) -> str | None:
     return token.access_token
 
 
+def check_connection(session: Session) -> None:
+    """Fuerza la comprobacion del token si toca refrescarlo, para que un
+    refresh token caducado se detecte al abrir la app y no solo cuando alguien
+    guarda una tarea con fecha."""
+    _get_valid_access_token(session)
+
+
+# Duracion por defecto de una tarea con hora (una reunion tipica). La app no
+# pide duracion al usuario: se prefiere un solo campo "hora" y que el bloque
+# se ajuste luego en el propio Calendar si hace falta.
+DEFAULT_EVENT_DURATION = timedelta(hours=1)
+
+
 def _event_body_for_task(task: Task) -> dict:
+    """Dos formas de evento segun tenga hora o no:
+
+    - Sin hora (fecha limite): evento de todo el dia, como hasta ahora.
+    - Con hora (una cita): bloque horario de DEFAULT_EVENT_DURATION. Se manda
+      el instante con el offset local dentro del propio ISO 8601 (RFC 3339),
+      que es lo que Google acepta sin necesidad de un campo `timeZone`; ese
+      campo exigiria un nombre IANA ("Europe/Madrid"), no la abreviatura que
+      da el sistema ("CEST"), asi que es mas seguro no mandarlo.
+
+    Google no permite pasar de un formato a otro dejando las claves antiguas
+    puestas, y `patch` hace merge: por eso el cuerpo manda SIEMPRE start y end
+    completos, de forma que cambiar la hora (o quitarla) reescriba el evento.
+    """
     assert task.due_date is not None
-    date_str = task.due_date.isoformat()
-    next_day_str = (task.due_date + timedelta(days=1)).isoformat()
     description = f"Tarea creada en la app de productividad (proyecto #{task.project_id})."
+
+    if task.due_time is None:
+        return {
+            "summary": task.name,
+            "description": description,
+            "start": {"date": task.due_date.isoformat()},
+            "end": {"date": (task.due_date + timedelta(days=1)).isoformat()},
+        }
+
+    start = datetime.combine(task.due_date, task.due_time).astimezone()
+    end = start + DEFAULT_EVENT_DURATION
     return {
         "summary": task.name,
         "description": description,
-        "start": {"date": date_str},
-        "end": {"date": next_day_str},
+        "start": {"dateTime": start.isoformat()},
+        "end": {"dateTime": end.isoformat()},
     }
 
 
@@ -174,7 +226,7 @@ def create_event_for_task(session: Session, task: Task) -> str | None:
 
 
 def update_event_for_task(session: Session, task: Task) -> str | None:
-    """Se invoca cuando due_date cambia de un valor a otro valor no nulo."""
+    """Se invoca cuando due_date o due_time cambian a una fecha no nula."""
     if task.due_date is None:
         return None
     access_token = _get_valid_access_token(session)

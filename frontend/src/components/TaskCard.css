@@ -15,6 +15,11 @@
   z-index: 10;
 }
 
+.task-card--overlay {
+  box-shadow: var(--shadow-card-lift);
+  cursor: grabbing;
+}
+
 .task-card__drag-handle {
   color: var(--color-ink-faint);
   cursor: grab;
@@ -47,6 +52,12 @@
   border: 1px solid var(--color-rule);
   border-radius: var(--radius-pill);
   padding: 1px 8px;
+  text-decoration: none;
+}
+
+.task-card__project-tag:hover {
+  color: var(--color-petrol);
+  border-color: var(--color-petrol);
 }
 
 .task-card__body {
@@ -135,4 +146,16 @@
 .task-card__expanded-actions .btn {
   padding: 0;
   font-size: 12px;
+}
+
+/* Fecha y hora van juntas en una fila: la hora es un matiz de la fecha, no un
+   dato independiente, y en columnas separadas se leia como tal. */
+.task-card__when {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.task-card__when .field {
+  flex: 1;
+  min-width: 0;
 }

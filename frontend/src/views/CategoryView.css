@@ -1,3 +1,16 @@
+.category-view__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.category-view__confirm-text {
+  font-size: 13px;
+  color: var(--color-danger);
+  max-width: 320px;
+}
+
 .project-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));

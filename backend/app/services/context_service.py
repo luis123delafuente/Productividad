@@ -54,6 +54,8 @@ def build_context(session: Session, scope: AssistantScope | None = None) -> str:
                 continue
             for task in tasks:
                 due = f", vence {task.due_date.isoformat()}" if task.due_date else ""
+                if task.due_date and task.due_time:
+                    due += f" a las {task.due_time.strftime('%H:%M')}"
                 today_flag = ", en Hoy" if task.in_today else ""
                 subtask_count = len(task.subtasks)
                 checked = sum(1 for s in task.subtasks if s.is_checked)
@@ -62,6 +64,19 @@ def build_context(session: Session, scope: AssistantScope | None = None) -> str:
                     f"    - Tarea #{task.id}: \"{task.name}\" [estado: {task.status.value}, "
                     f"prioridad: {task.priority.value}{due}{today_flag}{subtask_part}]"
                 )
+
+    standalone_tasks = session.exec(
+        select(Task)
+        .where(Task.project_id.is_(None), Task.is_archived == False)  # noqa: E712
+        .order_by(Task.created_at)
+    ).all()
+    lines.append("\n# Tareas sueltas en Hoy (sin proyecto)")
+    if not standalone_tasks:
+        lines.append("  (ninguna)")
+    else:
+        for task in standalone_tasks:
+            today_flag = ", en Hoy" if task.in_today else ""
+            lines.append(f"  - Tarea #{task.id}: \"{task.name}\" [estado: {task.status.value}{today_flag}]")
 
     archived_projects = session.exec(
         select(Project).where(Project.is_archived == True).order_by(Project.archived_at.desc())  # noqa: E712

@@ -21,6 +21,7 @@ from app.routers import subtasks as subtasks_router
 from app.routers import tasks as tasks_router
 from app.schemas import (
     SubtaskCreate,
+    TaskCreate,
     TaskDueDateUpdate,
     TaskInTodayUpdate,
     TaskStatusUpdate,
@@ -43,6 +44,32 @@ def execute_proposal(session: Session, action: str, params: dict) -> dict:
 
 
 def _dispatch(session: Session, action: str, params: dict):
+    if action == "create_task":
+        project_id = params.get("project_id")
+        if project_id is not None:
+            target_project = get_project_or_404(project_id, session)
+            if target_project.is_archived:
+                raise HTTPException(status_code=400, detail="No se puede crear una tarea en un proyecto archivado.")
+        body = TaskCreate(
+            project_id=project_id,
+            name=params["name"],
+            description=params.get("description"),
+            **({"priority": params["priority"]} if params.get("priority") else {}),
+            due_date=params.get("due_date"),
+            due_time=params.get("due_time"),
+            in_today=bool(params.get("in_today")),
+        )
+        return tasks_router.create_task(body=body, session=session)
+
+    if action == "edit_task":
+        task = get_task_or_404(params["task_id"], session)
+        updates: dict = {}
+        if params.get("name"):
+            updates["name"] = params["name"]
+        if params.get("description") is not None:
+            updates["description"] = params["description"]
+        return tasks_router.update_task(task=task, body=TaskUpdate(**updates), session=session)
+
     if action == "create_subtask":
         task = get_task_or_404(params["task_id"], session)
         return subtasks_router.create_subtask(task=task, body=SubtaskCreate(name=params["name"]), session=session)
@@ -60,7 +87,9 @@ def _dispatch(session: Session, action: str, params: dict):
     if action == "update_due_date":
         task = get_task_or_404(params["task_id"], session)
         return tasks_router.update_task_due_date(
-            task=task, body=TaskDueDateUpdate(due_date=params.get("due_date")), session=session
+            task=task,
+            body=TaskDueDateUpdate(due_date=params.get("due_date"), due_time=params.get("due_time")),
+            session=session,
         )
 
     if action == "add_to_today":

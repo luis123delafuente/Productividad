@@ -49,8 +49,11 @@ export function useSetTaskStatus() {
 export function useUpdateDueDate() {
   const invalidate = useInvalidateTaskViews();
   return useMutation({
-    mutationFn: ({ id, dueDate }: { id: number; dueDate: string | null }) =>
-      tasksApi.updateDueDate(id, dueDate),
+    mutationFn: ({ id, dueDate, dueTime }: { id: number; dueDate?: string | null; dueTime?: string | null }) =>
+      tasksApi.updateDueDate(id, {
+        ...(dueDate !== undefined ? { due_date: dueDate } : {}),
+        ...(dueTime !== undefined ? { due_time: dueTime } : {}),
+      }),
     onSuccess: invalidate,
   });
 }

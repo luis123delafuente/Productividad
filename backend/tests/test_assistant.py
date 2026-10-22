@@ -134,6 +134,102 @@ def test_create_subtask_proposal_creates_exactly_one_subtask(session):
     assert subtasks[0].name == "Wireframes"
 
 
+def test_create_task_proposal_creates_exactly_one_task(session):
+    project = _project(session)
+
+    result = actions_service.execute_proposal(
+        session,
+        "create_task",
+        {"project_id": project.id, "name": "Preparar factura", "priority": "Alta"},
+    )
+
+    tasks = session.exec(select(Task).where(Task.project_id == project.id)).all()
+    assert len(tasks) == 1
+    assert tasks[0].name == "Preparar factura"
+    assert tasks[0].priority == TaskPriority.alta
+    assert result["name"] == "Preparar factura"
+
+
+def test_create_task_into_archived_project_is_rejected(session):
+    archived_project = _project(session)
+    archived_project.is_archived = True
+    session.add(archived_project)
+    session.commit()
+
+    with pytest.raises(HTTPException) as exc_info:
+        actions_service.execute_proposal(
+            session, "create_task", {"project_id": archived_project.id, "name": "Algo"}
+        )
+    assert exc_info.value.status_code == 400
+
+
+def test_edit_task_proposal_changes_only_name(session):
+    project = _project(session)
+    task = _task(session, project, description="Descripcion original")
+
+    actions_service.execute_proposal(session, "edit_task", {"task_id": task.id, "name": "Entregar propuesta v2"})
+
+    session.refresh(task)
+    assert task.name == "Entregar propuesta v2"
+    assert task.description == "Descripcion original"  # sin tocar: no vino en la propuesta
+
+
+def test_chat_can_propose_creating_several_tasks_in_one_turn(monkeypatch, session):
+    project = _project(session)
+
+    fake_response = FakeResponse(
+        content="Te propongo crear 2 tareas.",
+        tool_calls=[
+            _tool_call("call_10", "propose_create_task", {"project_id": project.id, "name": "Tarea A"}),
+            _tool_call("call_11", "propose_create_task", {"project_id": project.id, "name": "Tarea B"}),
+        ],
+    )
+    fake_client = FakeClient(fake_response)
+    monkeypatch.setattr(assistant_service, "_client", lambda: fake_client)
+    monkeypatch.setattr(assistant_service, "get_settings", _fake_settings)
+
+    result = assistant_service.run_chat_turn(session, "crea 2 tareas para este proyecto")
+
+    assert len(result["proposals"]) == 2
+    assert {p.params["name"] for p in result["proposals"]} == {"Tarea A", "Tarea B"}
+    tasks = session.exec(select(Task).where(Task.project_id == project.id)).all()
+    assert tasks == []  # nada persistido todavia: solo son propuestas
+
+
+def test_chat_can_propose_creating_many_tasks_from_one_bulk_tool_call(monkeypatch, session):
+    """Path recomendado para listas largas: una unica llamada a
+    'propose_create_tasks' se explota en una Proposal 'create_task' por
+    nombre, cada una con su propia tarjeta -- no depende de que el modelo
+    repita N veces una llamada a funcion (poco fiable para N grande, que es
+    justo el bug que motivo esta funcion)."""
+    project = _project(session)
+    names = [f"Seccion {i}" for i in range(1, 16)]
+
+    fake_response = FakeResponse(
+        content="Te propongo crear 15 tareas.",
+        tool_calls=[_tool_call("call_20", "propose_create_tasks", {"project_id": project.id, "names": names})],
+    )
+    fake_client = FakeClient(fake_response)
+    monkeypatch.setattr(assistant_service, "_client", lambda: fake_client)
+    monkeypatch.setattr(assistant_service, "get_settings", _fake_settings)
+
+    result = assistant_service.run_chat_turn(session, "crea 15 tareas Seccion 1 a Seccion 15")
+
+    assert len(result["proposals"]) == 15
+    assert all(p.action == "create_task" for p in result["proposals"])
+    assert {p.params["name"] for p in result["proposals"]} == set(names)
+    assert len({p.id for p in result["proposals"]}) == 15  # ids unicos por tarjeta
+    tasks = session.exec(select(Task).where(Task.project_id == project.id)).all()
+    assert tasks == []  # nada persistido todavia: son solo propuestas
+
+
+def test_bulk_create_tasks_skips_blank_names(session):
+    proposals = assistant_service._build_bulk_create_task_proposals(
+        session, "call_x", {"names": ["Valida", "  ", "", "Otra valida"]}
+    )
+    assert [p.params["name"] for p in proposals] == ["Valida", "Otra valida"]
+
+
 def test_move_task_into_archived_project_is_rejected(session):
     project = _project(session)
     task = _task(session, project)
@@ -172,10 +268,19 @@ def test_chat_route_never_references_execute_proposal():
 def test_no_tool_accepts_an_array_of_targets():
     """Cada propuesta debe poder mutar como mucho un recurso: si alguna funcion
     aceptara, p.ej., task_ids como array, una sola confirmacion podria aplicar
-    varios cambios a la vez, rompiendo la regla de 'nunca en bloque'."""
+    varios cambios a la vez, rompiendo la regla de 'nunca en bloque'.
+
+    Unica excepcion documentada: "propose_create_tasks.names" -- ver
+    assistant_service._build_bulk_create_task_proposals, que lo explota en una
+    Proposal (y por tanto una tarjeta de confirmacion) independiente por
+    nombre antes de que nada llegue a actions_service, asi que el invariante
+    de "una confirmacion, un recurso" se sigue cumpliendo igual."""
+    allowed_array_params = {("propose_create_tasks", "names")}
     for tool in assistant_service.TOOLS:
         function = tool["function"]
         for prop_name, prop_schema in function["parameters"]["properties"].items():
+            if (function["name"], prop_name) in allowed_array_params:
+                continue
             assert prop_schema.get("type") != "array", (
                 f'La funcion "{function["name"]}" tiene un parametro array ("{prop_name}") -- '
                 "una propuesta debe mutar un unico recurso."

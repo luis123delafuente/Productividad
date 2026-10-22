@@ -1,11 +1,13 @@
 export type TaskStatus = "Pendiente" | "En proceso" | "Terminado";
 export type TaskPriority = "Alta" | "Media" | "Baja";
-export type SortMode = "priority" | "due_date" | "none";
+export type SortMode = "priority" | "due_date" | "none" | "manual";
 
 export interface Category {
   id: number;
   name: string;
   slug: string;
+  is_archived: boolean;
+  archived_at: string | null;
   active_project_count: number;
   archived_project_count: number;
 }
@@ -31,13 +33,15 @@ export interface Subtask {
 
 export interface Task {
   id: number;
-  project_id: number;
-  project_name: string;
+  project_id: number | null;
+  project_name: string | null;
   name: string;
   description: string | null;
   status: TaskStatus;
   priority: TaskPriority;
   due_date: string | null;
+  /** "HH:MM" dentro de due_date; null si la tarea solo tiene dia. */
+  due_time: string | null;
   created_at: string;
   is_archived: boolean;
   archived_at: string | null;
@@ -56,6 +60,7 @@ export type KanbanColumns = Record<TaskStatus, Task[]>;
 
 export interface CalendarStatus {
   connected: boolean;
+  needs_reauth: boolean;
   google_account_email: string | null;
 }
 

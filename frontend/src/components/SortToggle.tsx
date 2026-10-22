@@ -5,6 +5,7 @@ const OPTIONS: { value: SortMode; label: string }[] = [
   { value: "none", label: "Sin orden" },
   { value: "priority", label: "Prioridad" },
   { value: "due_date", label: "Fecha límite" },
+  { value: "manual", label: "Manual" },
 ];
 
 export function SortToggle({ value, onChange }: { value: SortMode; onChange: (v: SortMode) => void }) {

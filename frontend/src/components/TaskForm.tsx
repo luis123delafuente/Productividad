@@ -9,6 +9,7 @@ export function TaskForm({ projectId }: { projectId: number }) {
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState<TaskPriority>("Media");
   const [dueDate, setDueDate] = useState("");
+  const [dueTime, setDueTime] = useState("");
   const createTask = useCreateTask();
 
   function handleSubmit(e: React.FormEvent) {
@@ -21,6 +22,8 @@ export function TaskForm({ projectId }: { projectId: number }) {
         description: description.trim() || null,
         priority,
         due_date: dueDate || null,
+        // Una hora sin dia no significa nada; el backend la descarta igual.
+        due_time: (dueDate && dueTime) || null,
       },
       {
         onSuccess: () => {
@@ -28,6 +31,7 @@ export function TaskForm({ projectId }: { projectId: number }) {
           setDescription("");
           setPriority("Media");
           setDueDate("");
+          setDueTime("");
           setOpen(false);
         },
       }
@@ -61,6 +65,13 @@ export function TaskForm({ projectId }: { projectId: number }) {
         <option value="Baja">Baja</option>
       </select>
       <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+      <input
+        type="time"
+        value={dueTime}
+        disabled={!dueDate}
+        title={dueDate ? "Hora (opcional): la reserva en Calendar deja de ser de todo el día" : "Pon antes una fecha"}
+        onChange={(e) => setDueTime(e.target.value)}
+      />
       <button type="submit" className="btn btn--primary">
         Crear
       </button>

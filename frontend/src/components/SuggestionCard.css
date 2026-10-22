@@ -16,6 +16,12 @@
   border-radius: var(--radius-pill);
   padding: 1px 8px;
   white-space: nowrap;
+  text-decoration: none;
+}
+
+.suggestion-card__project-tag:hover {
+  color: var(--color-petrol);
+  border-color: var(--color-petrol);
 }
 
 .suggestion-card__name {

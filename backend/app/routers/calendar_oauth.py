@@ -54,7 +54,14 @@ def get_status(session: SessionDep):
     token = session.get(GoogleToken, 1)
     if token is None:
         return CalendarStatus(connected=False)
-    return CalendarStatus(connected=token.connected, google_account_email=token.google_account_email)
+    if token.connected:
+        calendar_service.check_connection(session)
+        session.refresh(token)
+    return CalendarStatus(
+        connected=token.connected,
+        needs_reauth=token.needs_reauth,
+        google_account_email=token.google_account_email,
+    )
 
 
 @router.post("/disconnect")

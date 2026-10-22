@@ -2,6 +2,7 @@ from datetime import datetime
 
 from app.models import Project, Task, TaskStatus
 from app.services.archive_service import (
+    check_and_run_daily_today_reset,
     check_and_run_weekly_archive,
     compute_start_of_current_week,
 )
@@ -95,3 +96,58 @@ def test_runs_again_after_crossing_next_monday(session):
     assert next_week_count == 1
     session.refresh(another_task)
     assert another_task.is_archived is True
+
+
+def test_daily_reset_clears_terminado_tasks_from_today(session):
+    project = _make_project(session)
+    done = Task(project_id=project.id, name="hecha", status=TaskStatus.terminado, in_today=True)
+    pending = Task(project_id=project.id, name="pendiente", status=TaskStatus.pendiente, in_today=True)
+    session.add_all([done, pending])
+    session.commit()
+
+    cleared_count = check_and_run_daily_today_reset(session, now=datetime(2026, 7, 23, 10, 0))
+
+    session.refresh(done)
+    session.refresh(pending)
+    assert cleared_count == 1
+    assert done.in_today is False
+    assert pending.in_today is True
+
+
+def test_daily_reset_idempotent_within_same_day(session):
+    project = _make_project(session)
+    done = Task(project_id=project.id, name="hecha", status=TaskStatus.terminado, in_today=True)
+    session.add(done)
+    session.commit()
+
+    first_run = check_and_run_daily_today_reset(session, now=datetime(2026, 7, 23, 10, 0))
+    assert first_run == 1
+
+    # Otra tarea Terminado aparece mas tarde el MISMO dia: no se quita de Hoy
+    # hasta el siguiente limite de dia, aunque se vuelva a llamar a la funcion.
+    another_done = Task(project_id=project.id, name="otra", status=TaskStatus.terminado, in_today=True)
+    session.add(another_done)
+    session.commit()
+
+    second_run = check_and_run_daily_today_reset(session, now=datetime(2026, 7, 23, 20, 0))
+    assert second_run == 0
+    session.refresh(another_done)
+    assert another_done.in_today is True
+
+
+def test_daily_reset_runs_again_after_crossing_midnight(session):
+    project = _make_project(session)
+    done = Task(project_id=project.id, name="hecha", status=TaskStatus.terminado, in_today=True)
+    session.add(done)
+    session.commit()
+
+    check_and_run_daily_today_reset(session, now=datetime(2026, 7, 23, 10, 0))
+
+    another_done = Task(project_id=project.id, name="otra", status=TaskStatus.terminado, in_today=True)
+    session.add(another_done)
+    session.commit()
+
+    next_day_count = check_and_run_daily_today_reset(session, now=datetime(2026, 7, 24, 9, 0))
+    assert next_day_count == 1
+    session.refresh(another_done)
+    assert another_done.in_today is False

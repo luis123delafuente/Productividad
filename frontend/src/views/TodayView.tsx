@@ -1,11 +1,26 @@
-import { useToday } from "../hooks/useToday";
+import { DndContext, type DragEndEvent, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
+import { arrayMove, SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { useReorderToday, useToday } from "../hooks/useToday";
 import { TaskCard } from "../components/TaskCard";
 import { SuggestionCard } from "../components/SuggestionCard";
+import { TodayQuickAddForm } from "../components/TodayQuickAddForm";
 import { useAssistant } from "../context/AssistantContext";
 
 export function TodayView() {
   const { data, isLoading } = useToday();
+  const reorderToday = useReorderToday();
   const { openWithMessage } = useAssistant();
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || !data || active.id === over.id) return;
+    const ids = data.selected.map((t) => t.id);
+    const oldIndex = ids.indexOf(Number(active.id));
+    const newIndex = ids.indexOf(Number(over.id));
+    if (oldIndex === -1 || newIndex === -1) return;
+    reorderToday.mutate(arrayMove(ids, oldIndex, newIndex));
+  }
 
   return (
     <div>
@@ -19,21 +34,29 @@ export function TodayView() {
         </button>
       </div>
 
+      <div style={{ marginBottom: "var(--space-3)" }}>
+        <TodayQuickAddForm />
+      </div>
+
       {isLoading && <p>Cargando...</p>}
 
       {data && data.selected.length === 0 && (
         <div className="empty-state">
           <p className="empty-state__title">Todavía no has elegido nada para hoy</p>
-          <p>Añade tareas desde cualquier proyecto, o revisa las sugerencias de abajo.</p>
+          <p>Añade una tarea rápida arriba, elige tareas desde cualquier proyecto, o revisa las sugerencias de abajo.</p>
         </div>
       )}
 
       {data && data.selected.length > 0 && (
-        <div>
-          {data.selected.map((task) => (
-            <TaskCard key={task.id} task={task} showChecklist showProjectTag />
-          ))}
-        </div>
+        <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+          <SortableContext items={data.selected.map((t) => t.id)} strategy={verticalListSortingStrategy}>
+            <div>
+              {data.selected.map((task) => (
+                <TaskCard key={task.id} task={task} showChecklist showProjectTag />
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
       )}
 
       {data && data.suggestions.length > 0 && (

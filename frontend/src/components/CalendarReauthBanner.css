@@ -1,0 +1,12 @@
+.calendar-reauth-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-rust-soft);
+  border: 1px solid var(--color-rust);
+  border-radius: var(--radius-card);
+  font-size: 13px;
+}
