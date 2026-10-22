@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { Task, TaskPriority } from "../api/types";
+import { formatDuration, formatTime, formatWeekday, parseDateTime, toISODate } from "../lib/dates";
 import { PriorityBadge } from "./PriorityBadge";
 import { SubtaskChecklist } from "./SubtaskChecklist";
 import {
@@ -67,6 +68,11 @@ export function TaskCard({
 
   const checkedCount = task.subtasks.filter((s) => s.is_checked).length;
   const dueLabel = formatDueDate(task.due_date, task.due_time);
+  const plannedAt = task.planned_start ? parseDateTime(task.planned_start) : null;
+  const plannedLabel = plannedAt
+    ? `▸ ${formatWeekday(plannedAt)} ${formatTime(plannedAt)} · ${formatDuration(task.planned_minutes ?? 60)}`
+    : null;
+  const plannedLink = plannedAt ? `/calendario?vista=dia&fecha=${toISODate(plannedAt)}` : null;
 
   useEffect(() => {
     setName(task.name);
@@ -144,6 +150,11 @@ export function TaskCard({
         </button>
         <div className="task-card__meta">
           {dueLabel && <span className="task-card__due">{dueLabel}</span>}
+          {plannedLabel && (
+            <Link className="task-card__planned" to={plannedLink!} title="Planificada en el calendario">
+              {plannedLabel}
+            </Link>
+          )}
           {task.subtasks.length > 0 && (
             <span className="task-card__progress">
               {checkedCount}/{task.subtasks.length}
@@ -211,7 +222,7 @@ export function TaskCard({
                   // Sin día no hay nada a lo que colgar la hora: el backend la
                   // descartaría igualmente al guardar.
                   disabled={!task.due_date}
-                  title={task.due_date ? "Con hora, el evento de Calendar deja de ser de todo el día" : "Pon antes una fecha"}
+                  title={task.due_date ? "Con hora, la entrega se añade a tu Google Calendar" : "Pon antes una fecha"}
                   value={toInputTime(task.due_time)}
                   onChange={(e) => updateDueDate.mutate({ id: task.id, dueTime: e.target.value || null })}
                 />

@@ -69,7 +69,7 @@ export function TaskForm({ projectId }: { projectId: number }) {
         type="time"
         value={dueTime}
         disabled={!dueDate}
-        title={dueDate ? "Hora (opcional): la reserva en Calendar deja de ser de todo el día" : "Pon antes una fecha"}
+        title={dueDate ? "Hora de entrega (opcional): con hora, se añade a tu Google Calendar" : "Pon antes una fecha"}
         onChange={(e) => setDueTime(e.target.value)}
       />
       <button type="submit" className="btn btn--primary">

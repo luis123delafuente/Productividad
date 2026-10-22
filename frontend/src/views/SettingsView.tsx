@@ -46,8 +46,10 @@ export function SettingsView() {
             </strong>
           </p>
           <p className="settings-view__hint">
-            Al conectar, cada tarea con fecha límite crea un evento en tu calendario principal de Google.
-            Completar una tarea antes de su fecha no borra el evento; sigue quedando como registro.
+            Al conectar, cada tarea con fecha y hora de entrega crea un evento en tu calendario principal de
+            Google (las que solo tienen fecha no). Completar una tarea no borra el evento; sigue quedando como
+            registro. Tus eventos se muestran en la pantalla Calendario; la planificación de tareas no se envía a
+            Google.
           </p>
           {status.connected && status.needs_reauth && (
             <button className="btn btn--primary" onClick={() => calendarApi.startConnect()}>
