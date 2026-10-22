@@ -5,6 +5,7 @@ import { CategoryView } from "./views/CategoryView";
 import { ProjectView } from "./views/ProjectView";
 import { ArchiveView } from "./views/ArchiveView";
 import { SettingsView } from "./views/SettingsView";
+import { CalendarView } from "./views/CalendarView";
 
 export const router = createBrowserRouter([
   {
@@ -12,6 +13,7 @@ export const router = createBrowserRouter([
     element: <App />,
     children: [
       { index: true, element: <TodayView /> },
+      { path: "calendario", element: <CalendarView /> },
       { path: "categoria/:slug", element: <CategoryView /> },
       { path: "proyecto/:id", element: <ProjectView /> },
       { path: "archivo", element: <ArchiveView /> },

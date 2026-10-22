@@ -1,0 +1,73 @@
+.calendar-view__header {
+  align-items: center;
+}
+
+.calendar-view__range {
+  font-family: var(--font-display);
+  text-transform: capitalize;
+}
+
+.calendar-view__controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.calendar-view__nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.calendar-view__nav .btn {
+  min-width: 32px;
+  justify-content: center;
+}
+
+.calendar-view__modes {
+  display: inline-flex;
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+}
+
+.calendar-view__mode {
+  border: 0;
+  background: transparent;
+  padding: var(--space-2) var(--space-3);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-ink-soft);
+}
+
+.calendar-view__mode + .calendar-view__mode {
+  border-left: 1px solid var(--color-rule);
+}
+
+.calendar-view__mode.is-active {
+  background: var(--color-petrol);
+  color: var(--color-paper-raised);
+}
+
+.calendar-view__note {
+  margin-bottom: var(--space-3);
+  font-size: 13px;
+  color: var(--color-ink-soft);
+}
+
+.calendar-view__layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 260px;
+  gap: var(--space-5);
+  align-items: start;
+}
+
+.calendar-view__loading {
+  color: var(--color-ink-soft);
+}
+
+@media (max-width: 900px) {
+  .calendar-view__layout {
+    grid-template-columns: 1fr;
+  }
+}

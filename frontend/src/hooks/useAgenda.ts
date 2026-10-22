@@ -3,9 +3,8 @@ import { agendaApi } from "../api/agenda";
 import { tasksApi } from "../api/tasks";
 import type { Agenda, Task } from "../api/types";
 import { addDays, parseDateTime, parseISODate } from "../lib/dates";
+import { DEFAULT_PLANNED_MINUTES } from "../lib/planning";
 import { invalidateTaskViews } from "./useTasks";
-
-export const DEFAULT_PLANNED_MINUTES = 60;
 
 export function useAgenda(start: string, days: number) {
   return useQuery({

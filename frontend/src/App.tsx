@@ -18,6 +18,9 @@ function Sidebar() {
         <NavLink to="/" end className={({ isActive }) => `sidebar__tab ${isActive ? "active" : ""}`}>
           Hoy
         </NavLink>
+        <NavLink to="/calendario" className={({ isActive }) => `sidebar__tab ${isActive ? "active" : ""}`}>
+          Calendario
+        </NavLink>
         {categories?.filter((category) => !category.is_archived).map((category) => (
           <NavLink
             key={category.id}
