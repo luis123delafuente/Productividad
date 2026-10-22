@@ -1,15 +1,22 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { tasksApi, type TaskCreateInput } from "../api/tasks";
 import type { TaskPriority, TaskStatus } from "../api/types";
 
+/** Todas las vistas que muestran tareas. Cualquier cambio en una tarea
+ * (estado, fecha, planificacion...) debe refrescarlas todas, para que el
+ * ciclo de vida sea el mismo en Hoy, el Kanban y el Calendario. */
+export function invalidateTaskViews(qc: QueryClient) {
+  qc.invalidateQueries({ queryKey: ["kanban"] });
+  qc.invalidateQueries({ queryKey: ["today"] });
+  qc.invalidateQueries({ queryKey: ["projects"] });
+  qc.invalidateQueries({ queryKey: ["archive"] });
+  qc.invalidateQueries({ queryKey: ["agenda"] });
+  qc.invalidateQueries({ queryKey: ["agenda-unplanned"] });
+}
+
 function useInvalidateTaskViews() {
   const qc = useQueryClient();
-  return () => {
-    qc.invalidateQueries({ queryKey: ["kanban"] });
-    qc.invalidateQueries({ queryKey: ["today"] });
-    qc.invalidateQueries({ queryKey: ["projects"] });
-    qc.invalidateQueries({ queryKey: ["archive"] });
-  };
+  return () => invalidateTaskViews(qc);
 }
 
 export function useCreateTask() {

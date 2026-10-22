@@ -42,6 +42,10 @@ export interface Task {
   due_date: string | null;
   /** "HH:MM" dentro de due_date; null si la tarea solo tiene dia. */
   due_time: string | null;
+  /** Planificacion en el calendario de la app: "YYYY-MM-DDTHH:MM:SS" en hora
+   * local, sin zona. null = sin planificar. Nunca se envia a Google. */
+  planned_start: string | null;
+  planned_minutes: number | null;
   created_at: string;
   is_archived: boolean;
   archived_at: string | null;
@@ -62,6 +66,30 @@ export interface CalendarStatus {
   connected: boolean;
   needs_reauth: boolean;
   google_account_email: string | null;
+}
+
+/** Evento de Google Calendar, de solo lectura. Con `all_day`, start/end son
+ * fechas "YYYY-MM-DD" (end exclusivo); si no, ISO 8601 con zona. */
+export interface AgendaEvent {
+  id: string;
+  summary: string;
+  start: string;
+  end: string | null;
+  all_day: boolean;
+}
+
+export interface AgendaGoogleStatus {
+  connected: boolean;
+  needs_reauth: boolean;
+  /** Conectado, pero la lectura de eventos fallo. */
+  error: boolean;
+}
+
+export interface Agenda {
+  blocks: Task[];
+  deadlines: Task[];
+  events: AgendaEvent[];
+  google: AgendaGoogleStatus;
 }
 
 export interface AssistantScope {

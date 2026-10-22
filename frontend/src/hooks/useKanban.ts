@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { kanbanApi } from "../api/kanban";
 import { tasksApi } from "../api/tasks";
 import type { KanbanColumns, SortMode, Task, TaskStatus } from "../api/types";
+import { invalidateTaskViews } from "./useTasks";
 
 function kanbanKey(projectId: number, sort: SortMode) {
   return ["kanban", projectId, sort] as const;
@@ -46,11 +47,7 @@ export function useUpdateTaskStatus(projectId: number, sort: SortMode) {
     onError: (_err, _vars, context) => {
       if (context?.previous) qc.setQueryData(key, context.previous);
     },
-    onSettled: () => {
-      qc.invalidateQueries({ queryKey: key });
-      qc.invalidateQueries({ queryKey: ["today"] });
-      qc.invalidateQueries({ queryKey: ["archive"] });
-    },
+    onSettled: () => invalidateTaskViews(qc),
   });
 }
 

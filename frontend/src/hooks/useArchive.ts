@@ -17,6 +17,7 @@ export function useCheckArchive() {
       if (result.archived_count > 0) {
         qc.invalidateQueries({ queryKey: ["kanban"] });
         qc.invalidateQueries({ queryKey: ["archive"] });
+        qc.invalidateQueries({ queryKey: ["agenda"] });
       }
       if (result.archived_count > 0 || result.today_cleared_count > 0) {
         qc.invalidateQueries({ queryKey: ["today"] });

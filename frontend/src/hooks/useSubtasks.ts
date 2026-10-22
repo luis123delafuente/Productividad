@@ -1,12 +1,10 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { subtasksApi } from "../api/subtasks";
+import { invalidateTaskViews } from "./useTasks";
 
 function useInvalidate() {
   const qc = useQueryClient();
-  return () => {
-    qc.invalidateQueries({ queryKey: ["kanban"] });
-    qc.invalidateQueries({ queryKey: ["today"] });
-  };
+  return () => invalidateTaskViews(qc);
 }
 
 export function useCreateSubtask() {

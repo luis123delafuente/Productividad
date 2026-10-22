@@ -23,6 +23,10 @@ export const tasksApi = {
   // borra la hora, y viceversa.
   updateDueDate: (id: number, patch: { due_date?: string | null; due_time?: string | null }) =>
     api.patch<Task>(`/tasks/${id}/due_date`, patch),
+  // Mismo criterio que updateDueDate: lo omitido no se toca; planned_start a
+  // null quita la tarea del calendario. Nunca toca Google Calendar.
+  updatePlanning: (id: number, patch: { planned_start?: string | null; planned_minutes?: number | null }) =>
+    api.patch<Task>(`/tasks/${id}/planning`, patch),
   toggleInToday: (id: number, in_today: boolean) => api.patch<Task>(`/tasks/${id}/in_today`, { in_today }),
   restore: (id: number) => api.post<Task>(`/tasks/${id}/restore`),
   remove: (id: number) => api.delete<void>(`/tasks/${id}`),
