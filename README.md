@@ -8,11 +8,17 @@ por fecha + manual por proyecto) y espejo con el calendario principal de Google 
 Todo corre en tu ordenador. Lo único que sale a internet es, opcionalmente, la
 sincronización puntual con la API de Google Calendar.
 
+El asistente es **Claude** (Claude Desktop o Claude Code), conectado a la app con un
+servidor MCP local (sección 4): lee tu día y tu agenda, crea y actualiza tareas, y para
+lo arriesgado te enseña una vista previa y te pide confirmación. La app no lleva ningún
+modelo de IA dentro ni necesita claves de API.
+
 ## Estructura
 
 ```
 backend/    API FastAPI + SQLite (SQLModel) — sirve tambien el frontend compilado
 frontend/   React + TypeScript + Vite
+mcp/        Servidor MCP para Claude (Python 3.9+, solo biblioteca estándar) y sus tests
 deploy/     LaunchAgent de macOS y acceso directo al navegador
 ```
 
@@ -124,78 +130,102 @@ para un uso estrictamente personal y no requiere el proceso de verificación de 
 Las credenciales viven solo en `backend/.env` (fuera de control de versiones) y los
 tokens obtenidos se guardan en tu propio `app.db` local, nunca en un servidor externo.
 
-## 4. Activar el asistente de IA (secretaria personal, opcional)
+## 4. Conectar Claude (servidor MCP)
 
-Un asistente conversacional (API de **Groq**, modelo `openai/gpt-oss-120b`) que
-ayuda a organizar el día, priorizar y desglosar tareas en subtareas. Nunca aplica
-nada por sí solo: cada propuesta se muestra en el chat con botones
-"Aceptar"/"Rechazar" independientes.
+`mcp/server.py` es un servidor MCP local que Claude Desktop y Claude Code arrancan como
+subproceso. Habla con la API de la app en `http://localhost:8000/api` (o en
+`PRODUCTIVIDAD_API_URL`), así que la app tiene que estar arrancada (sección 5).
 
-1. Crea una cuenta gratuita (sin tarjeta) en [console.groq.com](https://console.groq.com/)
-   y genera una API key en **console.groq.com/keys**.
-2. En `backend/.env`, rellena:
-   ```
-   GROQ_API_KEY=tu-api-key
-   GROQ_MODEL=openai/gpt-oss-120b
-   ```
-3. Reinicia el backend. Sin esta clave, el chat responde con un aviso claro
-   (503 "El asistente no está configurado") en vez de fallar de forma confusa —
-   el resto de la app funciona con normalidad igualmente.
-4. En la app: botón **Asistente** en el menú lateral (chat libre), botón
-   **Organizar mi día** en la vista Hoy, botón **Sugerir subtareas** dentro de
-   cualquier tarea expandida, y botón **Ayúdame a priorizar** dentro de un proyecto.
+### Qué puede hacer Claude
 
-**Límites del plan gratuito de Groq**: en torno a 30 peticiones/minuto y del orden
-de 1.000 al día para `openai/gpt-oss-120b` (las cifras exactas las fija Groq y
-pueden cambiar — revisa `console.groq.com/settings/limits` con tu cuenta). Para un
-uso personal (unas pocas peticiones por sesión de trabajo) queda muy por debajo del
-límite; el backend traduce un 429 de Groq en un aviso claro en el chat ("límite del
-plan gratuito alcanzado, espera un momento") en vez de un error crudo. Si en el
-futuro el uso crece (por ejemplo, varias personas compartiendo la instancia, o un
-uso mucho más intensivo), Groq ofrece planes de pago con límites más altos — no
-requiere cambiar nada de este código, solo la cuenta/clave asociada.
+| Tipo | Herramientas | ¿Pide permiso? |
+|---|---|---|
+| Lectura | `listar_proyectos`, `listar_tareas`, `ver_agenda` (Hoy, bloques, entregas, vencidas y eventos de Google), `proyecto_de_repo` | No |
+| Directo | `crear_tareas` (sin hora), `crear_proyecto`, `actualizar_tareas`, `actualizar_subtareas`, `asociar_repo` | No |
+| Propuesta | `proponer_cambios`: valida y devuelve una vista previa y un código, **sin aplicar nada** | No |
+| Confirmación | `confirmar_cambios(codigo)` | **Sí, siempre** |
 
-**Cambiar de modelo dentro de Groq**: `GROQ_MODEL` es la única variable que hace
-falta tocar (`backend/app/config.py`) — el resto del código (`assistant_service.py`)
-no depende del modelo concreto. Si `openai/gpt-oss-120b` se queda corto en
-peticiones que cruzan mucho contexto (p.ej. "organiza mi día" con calendario lleno
-y muchas tareas), prueba con otro modelo del catálogo de Groq (`console.groq.com`
-lista los disponibles) cambiando solo esa variable.
+**Qué necesita confirmación** (y por tanto pasa por `proponer_cambios` → vista previa →
+tu "sí" → `confirmar_cambios`):
 
-**Cómo se conecta con el resto del sistema:**
-- *Lectura de datos*: en cada turno, el backend serializa la jerarquía activa
-  completa (categorías → proyectos → tareas: nombre, estado, prioridad, fecha
-  límite, subtareas) — ver `backend/app/services/context_service.py`. Por
-  defecto el asistente ve todo, para poder priorizar con criterio real; si el
-  usuario pide centrarse en un proyecto o tarea concreta (por texto, o porque
-  vino de un botón contextual), se lo indica como instrucción, sin ocultarle
-  el resto de datos.
-- *Lectura de Google Calendar*: además, se le pasan los eventos de **hoy** con
-  hora concreta (`calendar_service.list_events_for_day`, una función nueva de
-  solo lectura que reutiliza el mismo token que ya usa la escritura de eventos
-  de fechas límite, y se degrada a "no conectado" sin romper nada si Google no
-  está enlazado). Los propios eventos de todo el día que la app crea para
-  fechas límite se excluyen de este cálculo — si no, contarían como "todo el
-  día ocupado" y corromperían la detección de huecos libres. Las tareas que sí
-  tienen hora aparecen en ese cálculo como el bloque horario que son, igual que
-  cualquier otra reunión del calendario.
-- *Flujo de confirmación*: el chat (`POST /api/assistant/chat`) **nunca ejecuta
-  nada** — solo devuelve texto y, si aplica, una lista de propuestas
-  (`backend/app/services/assistant_service.py`, usando *function calling* de
-  Groq/Llama —vía el SDK de OpenAI apuntando a `api.groq.com/openai/v1`— como
-  mecanismo de salida estructurada, nunca como ejecución agenteica real).
-  Cada propuesta se acepta o rechaza en su propia tarjeta; aceptar llama a
-  `POST /api/assistant/actions/execute` con esa única propuesta
-  (`backend/app/services/actions_service.py`), que reutiliza los mismos
-  endpoints ya existentes de tareas/proyectos — así que, por ejemplo, si el
-  asistente propone cambiar una fecha límite, al confirmarla se dispara
-  exactamente el mismo espejo de Google Calendar que si lo hicieras a mano. No
-  existe ningún endpoint capaz de aplicar más de una propuesta a la vez.
-- *Memoria*: el historial de chat vive solo en memoria del navegador (estado de
-  React); recargar la página empieza una conversación nueva, sin recordar nada
-  de sesiones anteriores.
-- El plan de "Organizar mi día" es texto de respuesta del chat — nunca crea
-  tareas, eventos de calendario, ni ninguna otra estructura persistente.
+- crear tareas con fecha **y** hora (crean un evento en Google Calendar);
+- cambiar la fecha o la hora cuando afecta a Google: la tarea tenía hora o evento, o va a
+  tenerla. Cambiar solo la fecha de una tarea con hora **mueve** su evento;
+- quitar de Hoy una tarea suelta (sin proyecto), porque la app la borra;
+- borrar tareas o subtareas, y archivar o reabrir proyectos.
+
+Lo impone el código, no solo las instrucciones:
+
+- las herramientas directas rechazan esos cambios (un lote mixto no aplica nada);
+- el código de una propuesta es de un solo uso y caduca a los 30 minutos;
+- si algo de lo afectado cambia entre la propuesta y la confirmación, no se aplica nada;
+- `confirmar_cambios` es la única herramienta marcada como destructiva y nunca debe estar
+  en la lista de permitidas, así que el cliente pide permiso cada vez.
+
+### Registrarlo (una vez)
+
+En los comandos, `<repo>` es la ruta absoluta de este repositorio.
+
+**Claude Code**:
+
+```bash
+claude mcp add -s user productividad -- /usr/bin/python3 <repo>/mcp/server.py
+```
+
+Y en `~/.claude/settings.json`, deja que las herramientas que no necesitan confirmación
+se usen sin preguntar (`confirmar_cambios` **no** va aquí):
+
+```json
+"permissions": {
+  "allow": [
+    "mcp__productividad__listar_proyectos", "mcp__productividad__listar_tareas",
+    "mcp__productividad__ver_agenda", "mcp__productividad__proyecto_de_repo",
+    "mcp__productividad__proponer_cambios", "mcp__productividad__crear_tareas",
+    "mcp__productividad__crear_proyecto", "mcp__productividad__actualizar_tareas",
+    "mcp__productividad__actualizar_subtareas", "mcp__productividad__asociar_repo"
+  ]
+}
+```
+
+**Claude Desktop**: en `~/Library/Application Support/Claude/claude_desktop_config.json`:
+
+```json
+"mcpServers": {
+  "productividad": {
+    "command": "/bin/bash",
+    "args": ["-c", "exec /usr/bin/python3 \"$0\"", "<repo>/mcp/server.py"]
+  }
+}
+```
+
+El rodeo por `/bin/bash` es necesario mientras el repo esté en el Escritorio. Si Desktop
+lanza `/usr/bin/python3` directamente, macOS le niega el acceso al fichero
+(`[Errno 1] Operation not permitted`), aunque Claude tenga permiso sobre el Escritorio.
+`/bin/bash` ya tiene "Acceso total al disco" por el LaunchAgent (sección 5.2). Reinicia
+Desktop (⌘Q) y, cuando te pida permiso por cada herramienta, elige "permitir siempre" en
+todas **menos** `confirmar_cambios`.
+
+**Después de cambiar algo en `mcp/`**, los clientes siguen con el proceso que cargaron al
+arrancar: reinicia Desktop (⌘Q) y abre una sesión nueva en Code. Si el cambio también
+toca el backend, reinicia el servicio (sección 5.2).
+
+### Repo → proyecto
+
+Desde Claude Code, la primera vez que pides tareas "de este proyecto", Claude pregunta a
+qué proyecto de la app corresponde el repo y lo recuerda en
+`~/.claude/productividad/repo-map.json` (`{"<raíz del repo>": project_id}`). Si ese
+proyecto se archiva o se borra, vuelve a preguntar.
+
+### Tests del servidor
+
+```bash
+/usr/bin/python3 -m unittest discover -s mcp/tests -t mcp            # Python 3.9, como Desktop
+backend/.venv/bin/python -m unittest discover -s mcp/tests -t mcp    # Python del backend
+```
+
+Los tests de integración arrancan un backend temporal (puerto libre, SQLite temporal,
+Google sin conectar) y hablan con el servidor por stdio. Nunca tocan `localhost:8000`,
+`backend/data/app.db` ni Google. Si no existe `backend/.venv`, esos tests se omiten.
 
 ## 5. Dejar la app siempre arrancada en macOS (LaunchAgent)
 
@@ -344,30 +374,24 @@ directamente esa URL en el navegador por defecto al hacer doble clic.
   rotado, reutilizado en los badges de prioridad, las cabeceras del Kanban y la marca
   de "archivado" — un único gesto visual repetido en vez de decoración genérica de
   dashboard.
-- **El asistente de IA reutiliza los endpoints existentes como motor de ejecución**,
-  en vez de reimplementar la lógica de mutación: `actions_service.execute_proposal`
-  llama directamente a los handlers ya definidos en `routers/tasks.py`/`routers/projects.py`
-  (`Depends` de FastAPI se borra a nivel de llamada Python, así que son funciones
-  normales). Esto garantiza que una propuesta del asistente nunca pueda divergir del
-  comportamiento normal de la app (p.ej. el espejo de calendario al cambiar una fecha
-  límite es exactamente el mismo código, se dispare desde el chat o desde el Kanban).
-- **Las propuestas del asistente son *function calling* de Groq/Llama usado como
-  salida estructurada, no como ejecución agenteica**: el modelo puede emitir varias
-  llamadas a función en una respuesta, pero esas llamadas nunca se ejecutan ni se le
-  devuelven como resultado — el turno termina ahí, y la ejecución real (si el
-  usuario confirma) pasa por una ruta totalmente distinta. El historial que se
-  reenvía entre turnos es siempre texto plano, nunca las llamadas a función crudas.
-- **Groq vía el SDK de `openai` apuntando a `api.groq.com/openai/v1`**, en vez de un
-  SDK propio de Groq: Groq expone una API compatible con OpenAI, así que reutilizar
-  ese SDK ya maduro evita una dependencia extra y hace el código de
-  `assistant_service.py` reconocible para cualquiera que conozca la API de OpenAI.
-  El modelo (`GROQ_MODEL`) es la única pieza configurable — cambiarlo dentro del
-  catálogo de Groq no toca ninguna lógica.
-- **Ningún tool acepta arrays de ids**: cada propuesta puede mutar un único recurso.
-  Combinado con que solo existe un endpoint de ejecución de una propuesta a la vez
-  (no hay "ejecutar en lote"), la regla de "nunca confirmar varias acciones juntas"
-  queda garantizada estructuralmente, no solo por convención — hay un test
-  (`test_assistant.py::test_no_tool_accepts_an_array_of_targets`) que lo comprueba.
+- **Claude por MCP en vez de un modelo de IA dentro de la app** (el asistente integrado
+  anterior se retiró en noviembre de 2026): un solo asistente, el que ya se usa a diario. La app no
+  tiene prompts, claves ni cuotas de un proveedor, y Claude ve el código del repo cuando
+  trocea trabajo desde Claude Code.
+- **El servidor MCP usa la API HTTP, nunca SQLite directamente**: crear o cambiar una
+  fecha desde Claude dispara exactamente el mismo espejo de Google Calendar que hacerlo
+  desde la interfaz.
+- **Solo biblioteca estándar y JSON-RPC a mano**, en vez del SDK oficial `mcp`: Claude
+  Desktop lo lanza con `/usr/bin/python3` (3.9) sin dependencias ni entorno virtual. Los
+  formatos de fecha y hora se validan con expresiones regulares fijas, porque
+  `fromisoformat` acepta más formatos en Python 3.11+ que en 3.9.
+- **La confirmación la imponen el código y el cliente, no las instrucciones**: propuestas
+  con código de un solo uso, caducidad y foto del estado (`mcp/proponer.py`), y
+  `confirmar_cambios` fuera de la lista de permitidas. Así lo confirmado es exactamente lo
+  que se enseñó en la vista previa.
+- **La regla "afecta a Google" vive en una función pura** (`mcp/riesgo.py`) que replica
+  `routers/tasks.py::update_task_due_date`. Si cambia esa regla en el backend, hay que
+  cambiar también esta función y su tabla de tests.
 
 ## Verificación
 
@@ -383,12 +407,19 @@ Comprobado explícitamente antes de dar el trabajo por terminado (ver
 - El archivado semanal es idempotente, se calcula por fecha (no por reloj de fondo) y
   nunca toca tareas de proyectos archivados manualmente (`test_archive_service.py`).
 - Las subtareas nunca cambian el estado de la tarea padre (`test_tasks_api.py`).
-- El asistente nunca ejecuta nada por sí solo: un test estructural (AST, mismo
-  patrón que el de calendario) verifica que el camino de chat no puede invocar
-  `execute_proposal`; otro test confirma que una respuesta con propuestas no
-  cambia ninguna fila hasta que se confirman de una en una (`test_assistant.py`).
-- Ningún tool del asistente acepta un array de ids (garantiza que una propuesta
-  nunca mute más de un recurso, ver `test_assistant.py`).
+- Servidor MCP (`mcp/tests`, 70 tests, con Python 3.9 y con el del backend):
+  - una vista previa nunca cambia nada;
+  - un código reutilizado, caducado o con el estado cambiado entre medias no aplica nada;
+  - un lote con un cambio que necesita confirmación, o con cualquier error, no aplica nada
+    y devuelve todos los errores juntos;
+  - la tabla de "afecta a Google" cubre, entre otros, cambiar solo la fecha de una tarea
+    con hora;
+  - las anotaciones de cada herramienta coinciden con la tabla de diseño.
+- Comprobado en vivo con Claude Desktop (9 de noviembre de 2026): "¿qué tengo hoy?" usa
+  `ver_agenda`; crear una tarea no pide permiso; borrarla enseña la vista previa y
+  `confirmar_cambios` pide permiso antes de aplicar.
+- Las rutas del asistente retirado y cualquier ruta `/api` inexistente dan 404 con
+  cualquier método (`test_retirada_asistente.py`).
 - El orden manual se guarda y se puede recuperar tal cual (`test_tasks_api.py`).
 - Reordenar a mano en Hoy y reordenar a mano una columna del Kanban son operaciones
   independientes: una no desordena la otra, ni siquiera cuando ambas vistas

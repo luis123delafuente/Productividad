@@ -164,3 +164,16 @@ Siguiente: hito 5 (T12 retirar Groq del backend, T13 del frontend, T14 README y 
 - Grep CA21: backend solo `tests/test_retirada_asistente.py`; frontend nada.
 - Pendiente (T14): build + reinicio en vivo con ok del usuario, observación de Hoy/Proyecto/Calendario, README,
   perfil, skill sincronizada (usuario), ejemplos reales y decidir si se borra el servidor antiguo.
+
+## T14 en curso — 2026-11-09
+
+- Desplegado: `npm run build` + reinicio. `/` 200, `POST /api/assistant/chat` 404, `/api/tasks` 200; el bundle ya no
+  contiene "Organizar mi día".
+- README: intro, estructura (`mcp/`), §4 reescrita como "Conectar Claude (servidor MCP)" (herramientas, qué necesita
+  confirmación, registro en Code y Desktop con /bin/bash, reinicio tras cambios, repo→proyecto, tests), decisiones y
+  verificación actualizadas. `grep -ci groq README.md` = 0.
+- `.harness/proyecto.md` actualizado (sin Groq ni evals; test incluye mcp/ con los dos Python; zonas delicadas del MCP).
+  El comando `test` del perfil se ejecuta entero: 76 + 70 + 70 OK.
+- Memorias del proyecto actualizadas (fuera la de Groq).
+- Falta (usuario): observar Hoy/Proyecto/Calendario sin botones (CA23), skill sincronizada (CA18), ejemplos 1-4 (CA19,
+  CA20) y decidir si se borra `~/.claude/skills/tareas-productividad/`.
