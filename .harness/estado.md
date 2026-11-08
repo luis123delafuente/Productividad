@@ -177,3 +177,6 @@ Siguiente: hito 5 (T12 retirar Groq del backend, T13 del frontend, T14 README y 
 - Memorias del proyecto actualizadas (fuera la de Groq).
 - Falta (usuario): observar Hoy/Proyecto/Calendario sin botones (CA23), skill sincronizada (CA18), ejemplos 1-4 (CA19,
   CA20) y decidir si se borra `~/.claude/skills/tareas-productividad/`.
+- 2026-11-09: borrado `~/.claude/skills/tareas-productividad/` (server.py, pd_api.py, pd_tasks.py) con ok del usuario.
+  Ninguna configuración lo referenciaba; dos procesos de sesiones de Code antiguas lo tenían cargado en memoria
+  (no se mataron; desaparecen al cerrar esas sesiones). Abierto de la spec resuelto.
