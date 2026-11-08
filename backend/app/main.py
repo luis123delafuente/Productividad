@@ -10,7 +10,7 @@ from sqlmodel import Session
 from app.backup import backup_database
 from app.config import get_settings
 from app.database import engine, init_db
-from app.routers import agenda, archive, assistant, calendar_oauth, categories, color_rules, kanban, projects, subtasks, tasks, today
+from app.routers import agenda, archive, calendar_oauth, categories, color_rules, kanban, projects, subtasks, tasks, today
 from app.seed import run_seed
 from app.services.archive_service import check_and_run_daily_today_reset, check_and_run_weekly_archive
 
@@ -48,12 +48,19 @@ app.include_router(archive.router)
 app.include_router(calendar_oauth.router)
 app.include_router(agenda.router)
 app.include_router(color_rules.router)
-app.include_router(assistant.router)
 
 
 @app.get("/api/health")
 def health():
     return {"status": "ok"}
+
+
+@app.api_route("/api/{rest:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"], include_in_schema=False)
+def api_not_found(rest: str):
+    """Cualquier /api/... que no coincide con un endpoint da 404 JSON, sea cual sea
+    el metodo. Sin esto, un POST a una ruta inexistente chocaba con el comodin
+    GET del frontend (abajo) y daba 405."""
+    raise HTTPException(status_code=404, detail="Not Found")
 
 
 # Sirve el build de produccion del frontend (frontend/dist, generado con

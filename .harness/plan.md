@@ -114,14 +114,14 @@ Notas transversales:
   - Depende de: T10
 
 ## Hito 5: Groq fuera y cierre
-- [ ] T12. Retirar el asistente de Groq del backend — CA21 (backend), CA22
+- [x] T12. Retirar el asistente de Groq del backend — CA21 (backend), CA22
   - Borrar el router, `assistant_service`, `actions_service`, `context_service`, `list_events_for_day` y su test,
     `test_assistant.py`, `backend/evals/` (creado en esta sesión, sin commit), `openai` en requirements, `GROQ_*`
     en config y `.env.example`, y `AssistantScope`, `Proposal` y similares en `schemas.py`.
   - Hecho cuando: el grep de CA21 sobre el backend cumple CA21 (ver la propuesta de cambio de spec pendiente),
     `pytest -q` pasa y un test comprueba que `POST /api/assistant/chat` da 404.
   - Depende de: —
-- [ ] T13. Retirar el asistente de Groq del frontend — CA21 (frontend), CA23
+- [x] T13. Retirar el asistente de Groq del frontend — CA21 (frontend), CA23
   - Hecho cuando: el grep de CA21 sobre `frontend/src` no devuelve nada; `tsc -b`, lint y build pasan; y en el
     navegador (o, si Chrome no conecta, con build y revisión de las vistas) Hoy, Proyecto y Calendario funcionan
     sin los botones.

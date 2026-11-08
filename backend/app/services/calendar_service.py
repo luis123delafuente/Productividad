@@ -305,23 +305,6 @@ def list_events(session: Session, start_day: date, end_day: date) -> list[dict] 
     return events
 
 
-def list_events_for_day(session: Session, day: date) -> list[dict] | None:
-    """Eventos con hora de un dia, para el asistente de IA ("Organizar mi dia").
-
-    Descarta los de todo el dia: no son un bloque horario ocupado y
-    corromperian el calculo de huecos libres (las entregas ya le llegan al
-    asistente por otra via, el propio due_date).
-    """
-    events = list_events(session, day, day + timedelta(days=1))
-    if events is None:
-        return None
-    return [
-        {"summary": e["summary"], "start": e["start"], "end": e["end"]}
-        for e in events
-        if not e["all_day"]
-    ]
-
-
 def delete_event_for_task(session: Session, task: Task) -> str | None:
     """Se invoca al borrar la tarea, o al quitarle la fecha limite.
 

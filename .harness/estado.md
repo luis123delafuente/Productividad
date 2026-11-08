@@ -149,3 +149,18 @@ Comprobado por el usuario y en los logs (`~/Library/Logs/Productividad/server.lo
 - UI: borrar una tarea (357) → DELETE 200 y 404 después.
 - Code: el usuario reporta que funciona (lista de permitidas sin confirmar_cambios).
 Siguiente: hito 5 (T12 retirar Groq del backend, T13 del frontend, T14 README y ejemplos reales).
+
+## T12 y T13 terminadas — 2026-11-09 (rama feature/claude-asistente-mcp)
+
+- Commit previo `bde2e01` con todo el trabajo del MCP (hitos 1-4).
+- T12 (backend): borrados router `assistant`, `assistant_service`, `actions_service`, `context_service`,
+  `test_assistant.py`, `backend/evals/` (sin commit, creado en esta sesión), `calendar_service.list_events_for_day` y
+  su test; fuera `openai` de requirements, `GROQ_*` de config y `.env.example`, esquemas del asistente.
+  Nuevo en main.py: `/api/{rest:path}` para cualquier método → 404 (antes un POST a una ruta /api inexistente daba 405
+  por el comodín GET del frontend). Test: `tests/test_retirada_asistente.py`. pytest 76 passed; MCP 70/70.
+- T13 (frontend): borrados `api/assistant.ts`, `AssistantDrawer`, `ProposalCard`, `AssistantContext`,
+  `useExecuteProposal`; quitados el botón "Asistente", "Organizar mi día", "Sugerir subtareas", "Ayúdame a priorizar"
+  y los tipos. tsc OK, lint sin avisos, build a scratchpad OK (425 kB).
+- Grep CA21: backend solo `tests/test_retirada_asistente.py`; frontend nada.
+- Pendiente (T14): build + reinicio en vivo con ok del usuario, observación de Hoy/Proyecto/Calendario, README,
+  perfil, skill sincronizada (usuario), ejemplos reales y decidir si se borra el servidor antiguo.

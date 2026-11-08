@@ -4,12 +4,10 @@ import { useReorderToday, useToday } from "../hooks/useToday";
 import { TaskCard } from "../components/TaskCard";
 import { SuggestionCard } from "../components/SuggestionCard";
 import { TodayQuickAddForm } from "../components/TodayQuickAddForm";
-import { useAssistant } from "../context/AssistantContext";
 
 export function TodayView() {
   const { data, isLoading } = useToday();
   const reorderToday = useReorderToday();
-  const { openWithMessage } = useAssistant();
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
   function handleDragEnd(event: DragEndEvent) {
@@ -29,9 +27,6 @@ export function TodayView() {
           <h1 className="main__title">Hoy</h1>
           <p className="main__subtitle">Lo que tú decides que importa hoy. Nada más.</p>
         </div>
-        <button className="btn btn--primary" onClick={() => openWithMessage("Organiza mi día")}>
-          Organizar mi día
-        </button>
       </div>
 
       <div style={{ marginBottom: "var(--space-3)" }}>

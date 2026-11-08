@@ -2,14 +2,11 @@ import { useEffect } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import { useCategories } from "./hooks/useCategories";
 import { useCheckArchive } from "./hooks/useArchive";
-import { AssistantProvider, useAssistant } from "./context/AssistantContext";
-import { AssistantDrawer } from "./components/AssistantDrawer";
 import { CategoryForm } from "./components/CategoryForm";
 import { CalendarReauthBanner } from "./components/CalendarReauthBanner";
 
 function Sidebar() {
   const { data: categories } = useCategories();
-  const { openDrawer } = useAssistant();
 
   return (
     <aside className="sidebar">
@@ -38,9 +35,6 @@ function Sidebar() {
         <NavLink to="/ajustes" className={({ isActive }) => `sidebar__tab ${isActive ? "active" : ""}`}>
           Ajustes
         </NavLink>
-        <button className="sidebar__tab sidebar__tab--button" onClick={openDrawer}>
-          Asistente
-        </button>
       </nav>
     </aside>
   );
@@ -68,15 +62,12 @@ export function App() {
   }, []);
 
   return (
-    <AssistantProvider>
-      <div className="app-shell">
-        <Sidebar />
-        <main className="main">
-          <CalendarReauthBanner />
-          <Outlet />
-        </main>
-        <AssistantDrawer />
-      </div>
-    </AssistantProvider>
+    <div className="app-shell">
+      <Sidebar />
+      <main className="main">
+        <CalendarReauthBanner />
+        <Outlet />
+      </main>
+    </div>
   );
 }

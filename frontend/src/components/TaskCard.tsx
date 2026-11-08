@@ -13,7 +13,6 @@ import {
   useUpdateDueDate,
   useUpdateTask,
 } from "../hooks/useTasks";
-import { useAssistant } from "../context/AssistantContext";
 import "./TaskCard.css";
 
 function formatDueDate(dueDate: string | null, dueTime: string | null): string | null {
@@ -52,7 +51,6 @@ export function TaskCard({
   const updateTask = useUpdateTask();
   const setTaskStatus = useSetTaskStatus();
   const deleteTask = useDeleteTask();
-  const { openWithMessage } = useAssistant();
   const isDone = task.status === "Terminado";
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -230,14 +228,6 @@ export function TaskCard({
             </div>
             <SubtaskChecklist taskId={task.id} subtasks={task.subtasks} />
             <div className="task-card__expanded-actions">
-              <button
-                className="btn btn--ghost"
-                onClick={() =>
-                  openWithMessage(`Sugiere subtareas para la tarea "${task.name}"`, { task_id: task.id })
-                }
-              >
-                Sugerir subtareas
-              </button>
               <button
                 className="btn btn--ghost btn--danger task-card__delete"
                 onClick={() => deleteTask.mutate(task.id)}

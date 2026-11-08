@@ -1,6 +1,6 @@
 import re
 from datetime import date, datetime, time
-from typing import Any, Optional
+from typing import Optional
 
 from pydantic import field_validator
 from sqlmodel import Field, SQLModel
@@ -233,42 +233,3 @@ class CalendarStatus(SQLModel):
 
 class CalendarAuthUrl(SQLModel):
     url: str
-
-
-# ---- Assistant ----
-class AssistantScope(SQLModel):
-    task_id: Optional[int] = None
-    project_id: Optional[int] = None
-
-
-class ChatMessage(SQLModel):
-    role: str  # "user" | "assistant" — texto plano unicamente, nunca bloques de tool_use.
-    content: str
-
-
-class AssistantChatRequest(SQLModel):
-    message: str
-    history: list[ChatMessage] = []
-    scope: Optional[AssistantScope] = None
-
-
-class Proposal(SQLModel):
-    id: str
-    action: str
-    summary: str
-    params: dict[str, Any]
-
-
-class AssistantChatResponse(SQLModel):
-    reply: str
-    proposals: list[Proposal] = []
-
-
-class ProposalExecuteRequest(SQLModel):
-    action: str
-    params: dict[str, Any]
-
-
-class ProposalExecuteResponse(SQLModel):
-    ok: bool
-    result: Optional[dict[str, Any]] = None

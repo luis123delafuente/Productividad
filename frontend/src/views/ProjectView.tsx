@@ -8,7 +8,6 @@ import { ProjectEditForm } from "../components/ProjectEditForm";
 import { SortToggle } from "../components/SortToggle";
 import { TaskForm } from "../components/TaskForm";
 import type { SortMode } from "../api/types";
-import { useAssistant } from "../context/AssistantContext";
 import "./ProjectView.css";
 
 export function ProjectView() {
@@ -20,7 +19,6 @@ export function ProjectView() {
   const [editing, setEditing] = useState(false);
   const archiveProject = useArchiveProject();
   const reopenProject = useReopenProject();
-  const { openWithMessage } = useAssistant();
 
   if (!project) return <p>Cargando...</p>;
 
@@ -41,16 +39,6 @@ export function ProjectView() {
             <button className="btn" onClick={() => setEditing(true)}>
               Editar proyecto
             </button>
-            {!project.is_archived && (
-              <button
-                className="btn"
-                onClick={() =>
-                  openWithMessage("Ayúdame a priorizar este proyecto", { project_id: project.id })
-                }
-              >
-                Ayúdame a priorizar
-              </button>
-            )}
             {project.is_archived ? (
               <button className="btn btn--primary" onClick={() => reopenProject.mutate(project.id)}>
                 Reabrir proyecto

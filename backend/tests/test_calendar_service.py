@@ -249,15 +249,3 @@ def test_list_events_returns_timed_and_all_day_without_cancelled(monkeypatch, se
         {"id": "a", "summary": "Reunion", "start": "2026-10-22T10:00:00+02:00", "end": "2026-10-22T11:00:00+02:00", "all_day": False},
         {"id": "b", "summary": "Festivo", "start": "2026-10-22", "end": "2026-10-23", "all_day": True},
     ]
-
-
-def test_list_events_for_day_keeps_only_timed_events_for_the_assistant(monkeypatch, session):
-    from datetime import date
-
-    from app.services import calendar_service
-
-    _fake_google_items(monkeypatch, GOOGLE_ITEMS)
-
-    assert calendar_service.list_events_for_day(session, date(2026, 10, 22)) == [
-        {"summary": "Reunion", "start": "2026-10-22T10:00:00+02:00", "end": "2026-10-22T11:00:00+02:00"}
-    ]

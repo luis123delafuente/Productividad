@@ -103,25 +103,3 @@ export interface Agenda {
   events: AgendaEvent[];
   google: AgendaGoogleStatus;
 }
-
-export interface AssistantScope {
-  task_id?: number;
-  project_id?: number;
-}
-
-export interface ChatMessage {
-  role: "user" | "assistant";
-  content: string;
-}
-
-export interface Proposal {
-  id: string;
-  action: string;
-  summary: string;
-  params: Record<string, unknown>;
-}
-
-export interface AssistantChatResponse {
-  reply: string;
-  proposals: Proposal[];
-}

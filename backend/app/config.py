@@ -17,12 +17,6 @@ class Settings(BaseSettings):
     google_client_secret: str = ""
     google_redirect_uri: str = "http://localhost:8000/api/calendar/oauth/callback"
 
-    # Asistente de IA: Groq (API compatible con OpenAI). Cambiar de modelo dentro
-    # del catalogo de Groq es solo cambiar esta variable de entorno, sin tocar
-    # ningun codigo (ver GROQ_BASE_URL en assistant_service.py).
-    groq_api_key: str = ""
-    groq_model: str = "openai/gpt-oss-120b"
-
 
 @lru_cache
 def get_settings() -> Settings:
