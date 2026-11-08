@@ -1,9 +1,12 @@
 from fastapi import APIRouter
+from sqlalchemy import or_
+from sqlmodel import select
 
 from app.deps import SessionDep, TaskDep
-from app.models import Task
+from app.models import Project, Task
 from app.schemas import (
     TaskCreate,
+    TaskDeleteResponse,
     TaskDueDateUpdate,
     TaskInTodayUpdate,
     TaskPlanningUpdate,
@@ -47,6 +50,21 @@ def _wants_event(task: Task) -> bool:
     """Solo una entrega con dia Y hora se refleja en Google Calendar. Una tarea
     con solo fecha limite vive unicamente en la app (marcador en su calendario)."""
     return task.due_date is not None and task.due_time is not None
+
+
+@router.get("", response_model=list[TaskRead])
+def list_tasks(session: SessionDep, project_id: int | None = None, sin_proyecto: bool = False):
+    """Tareas activas en una lista plana (lo usa el servidor MCP). Excluye las
+    archivadas y las de proyectos archivados; las sueltas (sin proyecto) salen
+    siempre que no se filtre por proyecto, esten o no en Hoy."""
+    query = select(Task).outerjoin(Project).where(Task.is_archived == False)  # noqa: E712
+    if project_id is not None:
+        query = query.where(Task.project_id == project_id)
+    elif sin_proyecto:
+        query = query.where(Task.project_id.is_(None))
+    query = query.where(or_(Task.project_id.is_(None), Project.is_archived == False))  # noqa: E712
+    tasks = session.exec(query.order_by(Task.project_id, Task.created_at)).all()
+    return [_to_read(t) for t in tasks]
 
 
 @router.get("/{task_id}", response_model=TaskRead)
@@ -141,9 +159,10 @@ def update_task_in_today(task: TaskDep, body: TaskInTodayUpdate, session: Sessio
     if not body.in_today and task.project_id is None:
         # Una tarea suelta (sin proyecto) no vive en ningun otro sitio:
         # quitarla de Hoy equivale a descartarla, no a "archivarla" en el vacio.
-        response = _to_read(task)
+        warning = None
         if task.google_event_id:
-            calendar_service.delete_event_for_task(session, task)
+            warning = calendar_service.delete_event_for_task(session, task)
+        response = _to_read(task, warning)
         session.delete(task)
         session.commit()
         return response
@@ -161,9 +180,13 @@ def restore_task_endpoint(task: TaskDep, session: SessionDep):
     return _to_read(task)
 
 
-@router.delete("/{task_id}", status_code=204)
+@router.delete("/{task_id}", response_model=TaskDeleteResponse)
 def delete_task(task: TaskDep, session: SessionDep):
+    """Devuelve 200 con el aviso de Google (si fallo borrar el evento) en vez
+    de 204, para que quien borra sepa que pudo quedar un evento huerfano."""
+    warning = None
     if task.google_event_id:
-        calendar_service.delete_event_for_task(session, task)
+        warning = calendar_service.delete_event_for_task(session, task)
     session.delete(task)
     session.commit()
+    return TaskDeleteResponse(calendar_sync_warning=warning)

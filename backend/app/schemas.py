@@ -128,6 +128,10 @@ class TaskPlanningUpdate(SQLModel):
     planned_minutes: Optional[int] = Field(default=None, ge=5, le=720)
 
 
+class TaskDeleteResponse(SQLModel):
+    calendar_sync_warning: Optional[str] = None
+
+
 class TaskInTodayUpdate(SQLModel):
     in_today: bool
 

@@ -29,5 +29,5 @@ export const tasksApi = {
     api.patch<Task>(`/tasks/${id}/planning`, patch),
   toggleInToday: (id: number, in_today: boolean) => api.patch<Task>(`/tasks/${id}/in_today`, { in_today }),
   restore: (id: number) => api.post<Task>(`/tasks/${id}/restore`),
-  remove: (id: number) => api.delete<void>(`/tasks/${id}`),
+  remove: (id: number) => api.delete<{ calendar_sync_warning: string | null }>(`/tasks/${id}`),
 };
