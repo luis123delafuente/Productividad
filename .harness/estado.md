@@ -180,3 +180,14 @@ Siguiente: hito 5 (T12 retirar Groq del backend, T13 del frontend, T14 README y 
 - 2026-11-09: borrado `~/.claude/skills/tareas-productividad/` (server.py, pd_api.py, pd_tasks.py) con ok del usuario.
   Ninguna configuración lo referenciaba; dos procesos de sesiones de Code antiguas lo tenían cargado en memoria
   (no se mataron; desaparecen al cerrar esas sesiones). Abierto de la spec resuelto.
+
+## Feature cerrada — 2026-11-09
+
+Plan completo (T1-T14). Verificado: CA1-CA17, CA21-CA24 (tests, comandos y observación del usuario en Desktop y en la UI).
+No verificado, por decisión del usuario:
+- CA18: la skill sincronizada `tareas-productividad` sigue en local con "solo CREAR" (copia del 2026-09-17); el usuario
+  debe actualizarla o desactivarla en claude.ai.
+- CA19-CA20: los ejemplos reales 1-4 no se ejecutaron en una sesión nueva ("son los mismos de antes"). Lo más cercano
+  comprobado: ver_agenda, crear directo y borrar con vista previa + permiso en Desktop. Sin probar: el troceo en fases
+  con fechas estimadas y la asociación repo→proyecto en un uso real (repo-map.json sigue vacío).
+Rama `feature/claude-asistente-mcp` sin merge ni push.

@@ -126,7 +126,7 @@ Notas transversales:
     navegador (o, si Chrome no conecta, con build y revisión de las vistas) Hoy, Proyecto y Calendario funcionan
     sin los botones.
   - Depende de: T12
-- [ ] T14. README, perfil y aceptación con los ejemplos reales — CA24, CA18, CA19, CA20
+- [x] T14. README, perfil y aceptación con los ejemplos reales — CA24, CA18, CA19, CA20
   - Antes: ok del usuario para reiniciar el servicio y hacer `npm run build` con T12 y T13.
   - Hecho cuando:
     - `grep -i groq README.md` no devuelve nada y `.harness/proyecto.md` está actualizado;
