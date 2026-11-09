@@ -191,3 +191,4 @@ No verificado, por decisión del usuario:
   comprobado: ver_agenda, crear directo y borrar con vista previa + permiso en Desktop. Sin probar: el troceo en fases
   con fechas estimadas y la asociación repo→proyecto en un uso real (repo-map.json sigue vacío).
 Rama `feature/claude-asistente-mcp` sin merge ni push.
+- 2026-11-09: el usuario desactivó en claude.ai la skill sincronizada `tareas-productividad` (CA18).
