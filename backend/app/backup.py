@@ -11,14 +11,20 @@ La poda conserva los MAX_BACKUPS mas recientes y, ademas, el ultimo de cada dia
 (KEEP_DAYS) y de cada semana (KEEP_WEEKS). Asi un bucle de reinicios (p. ej. una
 migracion rota con launchd relanzando cada 10 s) no puede barrer las copias
 sanas de dias anteriores.
+
+Si BACKUP_MIRROR_DIR esta configurado (backend/.env), cada backup se copia
+tambien alli: es la copia fuera del disco (carpeta de Google Drive).
 """
 
+import logging
 import os
 import shutil
 import sqlite3
 import time
 from datetime import datetime
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 MAX_BACKUPS = 30
 KEEP_DAYS = 14
@@ -40,7 +46,26 @@ def _list_backups(backups_dir: Path, stem: str, suffix: str) -> list[Path]:
     )
 
 
-def backup_database(db_path: Path) -> Path | None:
+def sync_mirror(backups_dir: Path, mirror_dir: Path | None, stem: str = "app", suffix: str = ".db") -> None:
+    """Copia a mirror_dir (p. ej. una carpeta de Google Drive) los backups que le
+    falten y lo poda con la misma politica. Es la copia fuera del disco: si falla
+    (Drive cerrado, sin red), se registra y el backup local sigue valiendo."""
+    if mirror_dir is None:
+        return
+    try:
+        mirror_dir.mkdir(parents=True, exist_ok=True)
+        for backup in _list_backups(backups_dir, stem, suffix):
+            target = mirror_dir / backup.name
+            if not target.exists():
+                tmp = target.with_suffix(target.suffix + ".tmp")
+                shutil.copy2(backup, tmp)
+                tmp.replace(target)
+        _prune_old_backups(mirror_dir, stem, suffix)
+    except OSError:
+        logger.exception("Fallo copiando los backups al espejo %s", mirror_dir)
+
+
+def backup_database(db_path: Path, mirror_dir: Path | None = None) -> Path | None:
     """Copia de arranque: la base aun no esta abierta, basta con copiar el fichero."""
     if not db_path.exists():
         return None
@@ -53,10 +78,11 @@ def backup_database(db_path: Path) -> Path | None:
         shutil.copy2(db_path, destination)
 
     _prune_old_backups(backups_dir, db_path.stem, db_path.suffix)
+    sync_mirror(backups_dir, mirror_dir, db_path.stem, db_path.suffix)
     return destination
 
 
-def ensure_daily_backup(db_path: Path, now: float | None = None) -> Path | None:
+def ensure_daily_backup(db_path: Path, now: float | None = None, mirror_dir: Path | None = None) -> Path | None:
     """Copia diaria con el servicio en marcha. Devuelve la ruta creada o None si no hacia falta."""
     if not db_path.exists():
         return None
@@ -93,6 +119,7 @@ def ensure_daily_backup(db_path: Path, now: float | None = None) -> Path | None:
     os.utime(destination, (db_mtime, db_mtime))
 
     _prune_old_backups(backups_dir, db_path.stem, db_path.suffix, now=now)
+    sync_mirror(backups_dir, mirror_dir, db_path.stem, db_path.suffix)
     return destination
 
 

@@ -17,6 +17,11 @@ class Settings(BaseSettings):
     # rebinding desde webs ajenas. Solo localhost; los tests anaden "testserver".
     allowed_hosts: list[str] = ["localhost", "127.0.0.1"]
 
+    # Copia de los backups fuera del disco (p. ej. una carpeta de Google Drive
+    # para escritorio). Vacio = desactivado. Va en backend/.env, no en el
+    # codigo: la ruta de Drive lleva la cuenta de Google en el nombre.
+    backup_mirror_dir: str = ""
+
     google_client_id: str = ""
     google_client_secret: str = ""
     google_redirect_uri: str = "http://localhost:8000/api/calendar/oauth/callback"

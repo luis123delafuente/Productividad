@@ -25,7 +25,8 @@ Crecimiento: ~450 KB/año de datos. Lo primero que se rompe al 10x es el context
 
 ## Plan
 
-Ahora (2–5 hechos el 2026-11-10 como T17–T20; el 1 queda en manos del usuario):
+Ahora (todos hechos el 2026-11-10: 2–5 como T17–T20; el 1 como espejo de los backups en Google Drive para
+escritorio, `BACKUP_MIRROR_DIR`):
 1. Copia de `backend/data/backups/` fuera del disco (Time Machine o iCloud/otro disco).
 2. Backup diario además del de arranque.
 3. Poda que conserve un backup por día de la última semana y uno por semana del último mes.

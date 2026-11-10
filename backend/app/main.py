@@ -24,7 +24,8 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     db_path = Path(settings.database_url.removeprefix("sqlite:///"))
-    backup_database(db_path)
+    mirror_dir = Path(settings.backup_mirror_dir).expanduser() if settings.backup_mirror_dir else None
+    backup_database(db_path, mirror_dir=mirror_dir)
     init_db()
     with Session(engine) as session:
         run_seed(session)
@@ -33,6 +34,7 @@ async def lifespan(_app: FastAPI):
     # Solo con el servicio arrancado de verdad: los tests usan TestClient sin
     # lifespan y asi nunca hacen backups de la base real.
     _app.state.backup_db_path = db_path
+    _app.state.backup_mirror_dir = mirror_dir
     yield
 
 
@@ -52,7 +54,7 @@ async def daily_backup(request: Request, call_next):
     if db_path is not None and now - _last_backup_check >= DAILY_BACKUP_CHECK_SECONDS:
         _last_backup_check = now
         try:
-            ensure_daily_backup(db_path)
+            ensure_daily_backup(db_path, mirror_dir=getattr(request.app.state, "backup_mirror_dir", None))
         except Exception:
             logger.exception("Fallo haciendo el backup diario de %s", db_path)
     return await call_next(request)

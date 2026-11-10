@@ -41,6 +41,7 @@ asistente es Claude (Desktop y Code) a través del servidor MCP de `mcp/`.
 - **Datos reales**: `backend/data/app.db` es la base de datos que usa el usuario a diario. Backups automáticos en
   `backend/data/backups/` al arrancar y cada 24 h con el servicio vivo (`app/backup.py`; 30 recientes + uno por día
   14 días + uno por semana 8 semanas). El diario solo se activa vía lifespan: los tests usan `TestClient` sin `with`.
+  Copia espejo fuera del disco en Google Drive para escritorio (`BACKUP_MIRROR_DIR` en `backend/.env`).
   Nunca escribir en ella desde tests ni scripts.
 - **Hosts y OAuth**: `TrustedHostMiddleware` solo acepta `localhost` y `127.0.0.1` (`allowed_hosts` en config; los
   tests añaden `testserver` en `conftest.py`). El callback de OAuth exige el `state` emitido por `/auth-url`.
@@ -66,7 +67,7 @@ riesgo:
   exposición: solo localhost; fuera de alcance exponerlo
   escala: 1 usuario, 1 Mac; clientes MCP: Claude Desktop y Claude Code
   datos: tareas personales y profesionales + refresh token de Google (calendar.events) en app.db
-  activo crítico: app.db (irrecuperable); copia fuera del disco a cargo del usuario
+  activo crítico: app.db (irrecuperable); copia fuera del disco en Google Drive (espejo de backups)
   LLM: ninguno dentro de la app; coste adicional 0
   revisar si: se expone fuera de localhost, entra otro usuario o se vuelve a meter un LLM en la app
 
