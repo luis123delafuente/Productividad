@@ -135,3 +135,14 @@ Notas transversales:
 
     Se pregunta si se borra el servidor antiguo (Abierto de la spec).
   - Depende de: T11, T13
+
+## Hito: Mantenimiento 2026-11-10
+Informe: `.harness/mantenimiento/2026-11-10.md`.
+- [x] T15. Actualizar `certifi` a >=2026.10.18 en el backend
+  - Hecho cuando: `pip-audit` sobre el venv no da vulnerabilidades, `requirements.txt` fija `certifi>=2026.10.18`
+    y `pytest -q` pasa. Reiniciar el servicio solo con ok del usuario.
+  - Depende de: —
+- [x] T16. Parchear las vulnerabilidades del frontend (`vite`, `react-router-dom` y transitivas)
+  - Hecho cuando: `npm audit` da 0 vulnerabilidades; `tsc -b`, lint y build a un directorio temporal pasan.
+    `npm run build` real solo con ok del usuario.
+  - Depende de: —
