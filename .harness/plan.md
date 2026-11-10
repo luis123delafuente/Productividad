@@ -146,3 +146,23 @@ Informe: `.harness/mantenimiento/2026-11-10.md`.
   - Hecho cuando: `npm audit` da 0 vulnerabilidades; `tsc -b`, lint y build a un directorio temporal pasan.
     `npm run build` real solo con ok del usuario.
   - Depende de: —
+
+## Hito: Riesgos 2026-11-10
+Origen: `.harness/riesgos.md`. Copia fuera del disco (Time Machine o similar): la hace el usuario.
+- [x] T17. Backup diario además del de arranque
+  - Sin procesos en segundo plano: al atender una petición, si el último backup tiene más de 24 h y la base ha
+    cambiado desde entonces, se copia con la API de backup de SQLite (copia consistente con la base abierta).
+  - Hecho cuando: un test con base temporal comprueba que se crea si el último backup es antiguo, que no se crea si
+    es reciente o si la base no ha cambiado, y `pytest -q` pasa.
+  - Depende de: —
+- [x] T18. Poda que conserve backups antiguos
+  - Conservar los 30 más recientes, más el último de cada día (14 días) y el último de cada semana (8 semanas).
+  - Hecho cuando: un test con 40 reinicios seguidos comprueba que siguen el de ayer y el de hace 3 semanas.
+  - Depende de: —
+- [x] T19. Validar `state` en el callback de OAuth
+  - Hecho cuando: un test comprueba que el callback sin `state` o con uno desconocido no canjea el código y redirige
+    a `?calendar=error`, y que con el `state` emitido por `/auth-url` sí lo canjea (una sola vez).
+  - Depende de: —
+- [x] T20. `TrustedHostMiddleware` (localhost y 127.0.0.1)
+  - Hecho cuando: un test comprueba que `Host: evil.com` recibe 400 y `Host: localhost:8000` funciona.
+  - Depende de: —

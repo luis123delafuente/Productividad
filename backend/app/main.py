@@ -1,13 +1,16 @@
+import logging
+import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from sqlmodel import Session
 
-from app.backup import backup_database
+from app.backup import backup_database, ensure_daily_backup
 from app.config import get_settings
 from app.database import engine, init_db
 from app.routers import agenda, archive, calendar_oauth, categories, color_rules, kanban, projects, subtasks, tasks, today
@@ -15,6 +18,7 @@ from app.seed import run_seed
 from app.services.archive_service import check_and_run_daily_today_reset, check_and_run_weekly_archive
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -26,10 +30,33 @@ async def lifespan(_app: FastAPI):
         run_seed(session)
         check_and_run_weekly_archive(session)
         check_and_run_daily_today_reset(session)
+    # Solo con el servicio arrancado de verdad: los tests usan TestClient sin
+    # lifespan y asi nunca hacen backups de la base real.
+    _app.state.backup_db_path = db_path
     yield
 
 
 app = FastAPI(title="Productividad API", lifespan=lifespan)
+
+DAILY_BACKUP_CHECK_SECONDS = 3600
+_last_backup_check = 0.0
+
+
+@app.middleware("http")
+async def daily_backup(request: Request, call_next):
+    """Backup diario sin procesos en segundo plano: se comprueba al atender
+    peticiones (web o MCP), como mucho una vez por hora."""
+    global _last_backup_check
+    db_path = getattr(request.app.state, "backup_db_path", None)
+    now = time.monotonic()
+    if db_path is not None and now - _last_backup_check >= DAILY_BACKUP_CHECK_SECONDS:
+        _last_backup_check = now
+        try:
+            ensure_daily_backup(db_path)
+        except Exception:
+            logger.exception("Fallo haciendo el backup diario de %s", db_path)
+    return await call_next(request)
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -37,6 +64,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+# El ultimo que se anade es el mas externo: rechaza un Host ajeno antes que nada.
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.allowed_hosts)
 
 app.include_router(categories.router)
 app.include_router(projects.router)

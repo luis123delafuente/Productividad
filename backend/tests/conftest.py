@@ -1,8 +1,14 @@
-import pytest
-from sqlmodel import Session, SQLModel, create_engine
-from sqlmodel.pool import StaticPool
+import os
 
-from app.seed import run_seed
+# Antes de importar la app: TestClient manda "Host: testserver", que la
+# TrustedHostMiddleware rechazaria con los hosts de produccion.
+os.environ["ALLOWED_HOSTS"] = '["localhost", "127.0.0.1", "testserver"]'
+
+import pytest  # noqa: E402
+from sqlmodel import Session, SQLModel, create_engine  # noqa: E402
+from sqlmodel.pool import StaticPool  # noqa: E402
+
+from app.seed import run_seed  # noqa: E402
 
 
 @pytest.fixture

@@ -39,7 +39,11 @@ asistente es Claude (Desktop y Code) a través del servidor MCP de `mcp/`.
 - **Migraciones a mano** (`backend/app/database.py`): `create_all` + `ALTER TABLE` puntuales y un rebuild de
   `task` con lista de columnas fija. No hay Alembic ni tests de migración. Toda columna nueva necesita su parche.
 - **Datos reales**: `backend/data/app.db` es la base de datos que usa el usuario a diario. Backups automáticos en
-  `backend/data/backups/` (máx. 30) al arrancar. Nunca escribir en ella desde tests ni scripts.
+  `backend/data/backups/` al arrancar y cada 24 h con el servicio vivo (`app/backup.py`; 30 recientes + uno por día
+  14 días + uno por semana 8 semanas). El diario solo se activa vía lifespan: los tests usan `TestClient` sin `with`.
+  Nunca escribir en ella desde tests ni scripts.
+- **Hosts y OAuth**: `TrustedHostMiddleware` solo acepta `localhost` y `127.0.0.1` (`allowed_hosts` en config; los
+  tests añaden `testserver` en `conftest.py`). El callback de OAuth exige el `state` emitido por `/auth-url`.
 - **Instancia en vivo**: `npm run build` sobrescribe `frontend/dist`, que sirve la app real; reiniciar el servicio
   (`launchctl kickstart -k gui/$(id -u)/com.productividad.app`) afecta al uso diario. Pedir ok antes.
 - **Google Calendar** (`services/calendar_service.py`, `routers/tasks.py`): escribe en el calendario principal real.
@@ -54,6 +58,17 @@ asistente es Claude (Desktop y Code) a través del servidor MCP de `mcp/`.
   (`Operation not permitted`) porque el repo está en el Escritorio; se lanza vía `/bin/bash`.
 - **Sin tests**: todo el frontend; sin lint ni type-check en el backend ni en `mcp/`.
 - **Secretos**: `backend/.env` (credenciales Google), fuera de git. No leer ni copiar su contenido.
+
+## Riesgo
+
+riesgo:
+  nivel: mínimo (evaluación en `.harness/riesgos.md`, 2026-11-10)
+  exposición: solo localhost; fuera de alcance exponerlo
+  escala: 1 usuario, 1 Mac; clientes MCP: Claude Desktop y Claude Code
+  datos: tareas personales y profesionales + refresh token de Google (calendar.events) en app.db
+  activo crítico: app.db (irrecuperable); copia fuera del disco a cargo del usuario
+  LLM: ninguno dentro de la app; coste adicional 0
+  revisar si: se expone fuera de localhost, entra otro usuario o se vuelve a meter un LLM en la app
 
 ## Convenciones
 

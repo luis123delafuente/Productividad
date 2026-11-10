@@ -13,6 +13,10 @@ class Settings(BaseSettings):
     # FRONTEND_ORIGIN=http://localhost:5173 en backend/.env mientras tanto.
     frontend_origin: str = "http://localhost:8000"
 
+    # Hosts aceptados en la cabecera Host (TrustedHostMiddleware): corta el DNS
+    # rebinding desde webs ajenas. Solo localhost; los tests anaden "testserver".
+    allowed_hosts: list[str] = ["localhost", "127.0.0.1"]
+
     google_client_id: str = ""
     google_client_secret: str = ""
     google_redirect_uri: str = "http://localhost:8000/api/calendar/oauth/callback"
